@@ -1,6 +1,6 @@
 # SmashCorner — Website & Booking System Spec
 
-> Status: **Draft v4.13** · Last updated: 2026-10-13
+> Status: **Draft v4.90** · Last updated: 2026-10-26
 > Purpose: Agree on scope, page structure, and booking/admin flows before any code is written.
 
 ---
@@ -80,7 +80,7 @@ Global (not counted): Header/Nav, Footer, Cookie banner.
   - **Skippable:** a click or tap, Esc, Enter or Space jumps straight to the fade-out (added in the mockup; add the same to the component when building). While it plays, the page behind can't be scrolled or clicked.
   - **Reduced motion:** visitors who prefer reduced motion see only the finished logo, which then fades out.
   - Hidden for visitors without JavaScript, so it never blocks the page.
-  - Background `#141118` (near-black with a hint of purple); logo width `min(96px, 19.2vw)` (made 70% smaller in v4.3; was `min(320px, 64vw)`). Uses the exact logo colors (`#BB9AD0`, `#050505`, `#E0DE29`).
+  - Background `#000000` (black since v4.19; `#0E0B12` in v4.18; was violet `#330C65` in v4.17, Indian Wells Green in v4.15–v4.16, deep violet in v4.14, `#141118` before); logo width `min(96px, 19.2vw)` (made 70% smaller in v4.3; was `min(320px, 64vw)`). Uses the exact logo colors (`#BB9AD0`, `#050505`, `#E0DE29`).
   - **Build:** `SplashScreen.tsx` in the project folder is the drop-in component for the Next.js site, with no dependencies and no CSS file. Mount it in `app/layout.tsx` as `<SplashScreen />` before `{children}` (without `oncePerSession`, so it plays on every load/refresh). The mockup runs a plain-JavaScript copy of the same animation (same paths and timing).
 - Respect `prefers-reduced-motion` (animations disabled/reduced).
 
@@ -196,7 +196,18 @@ Route: `/admin` (hidden from navigation, `noindex`, excluded from sitemap).
 
 ### Access
 - **Only admins can sign in.** There is no public sign-up page and no customer login.
-- **5 admin accounts**, created at setup (seeded). All 5 have the same permissions.
+- **5 admin accounts**, created at setup (seeded), in **two roles**:
+
+  | Role | Accounts | Can see and use |
+  |---|---|---|
+  | **Super-admin** | 2 | Everything: Dashboard, **Reports**, Court Bookings, Classes & Events, **Management**, Calendar, **Activity Log**, **Admin Accounts** |
+  | **Admin** | 3 | Managing bookings: Dashboard, Court Bookings (approve, reject, cancel, edit/reschedule, waitlist, export), Classes & Events (registration controls, approve/reject registrations, export), Calendar |
+
+  - **Only super-admins** see the **Activity Log** and **Reports (analytics)**. Management (Closures, Payment Methods, Equipment Inventory) and Admin Accounts are also super-admin only.
+  - For admins, those sections are **hidden from the sidebar**, and the server refuses them too (role checked in Supabase RLS / API routes, not just hidden in the page).
+  - Admins' Dashboard doesn't show revenue ("Approved · next 7 days" ₱); it shows "Class registrations to review" instead.
+  - Admins' actions are still recorded in the Activity Log; only super-admins can read it.
+  - The sidebar shows the signed-in person's role under their name.
 - Login: email + password. Password reset by email. Sessions expire after inactivity (e.g. 8 hours).
 - Login is rate-limited (lock for 15 minutes after 5 failed attempts).
 - **All 5 admins receive every admin notification email.**
@@ -228,6 +239,8 @@ The sidebar lists **sections only** and **always stays in view**: it doesn't scr
 | Calendar | (none) |
 | **Admin** | **Activity Log** · Admin Accounts |
 
+Admins (not super-admins) only see Dashboard, Court Bookings, Classes & Events and Calendar (see Access above).
+
 On phones (see §14 "Mobile navigation"), the sidebar becomes a **☰ menu button** in a sticky top bar. The button shows the current section and the number waiting for review, and opens a dropdown with the sections plus the signed-in admin, View site and Sign out. Each section's tabs also become a **☰ dropdown** that shows the current tab and its count.
 
 | Section | What it does |
@@ -244,7 +257,7 @@ On phones (see §14 "Mobile navigation"), the sidebar becomes a **☰ menu butto
 | **Closures** | Close courts for dates or hours; see "Closures" below |
 | **Payment Methods** | Add, edit, hide/show, drag to reorder, and delete the payment options customers see (name, details, QR image); see §16 |
 | **Equipment Inventory** | Admin enters and updates stock for each item (Tennis Rackets, Pickleball Paddles, Tennis Balls, Pickleball Balls). The booking form only offers what is available for that hour. |
-| **Activity Log** | Who did what, when |
+| **Activity Log** | Who did what, when (super-admins only) |
 
 Search & filter everywhere by name, email, reference number, court, date.
 
@@ -345,7 +358,7 @@ An **Export to Excel** button sits at the top right of the **Court Bookings** an
 
 ## 9. Waitlist (Recommended Approach)
 
-**Summary:** if a time slot is already taken, the customer can join a first-come, first-served waitlist for it. When that slot frees up (because a booking was rejected, cancelled or moved), the first person in line gets an email with a link that's valid for 2 hours. The link takes them straight into booking with the slot already picked and held for them. If they don't use it in time, the next person gets the email. If nobody takes it, the slot goes back on public sale. This runs on its own, so admins don't have to do anything.
+**Summary:** if a time slot is already taken, the customer can join a first-come, first-served waitlist for it. When that slot frees up (because a booking was rejected, cancelled or moved), the first person in line gets an email with a link that's valid for 2 hours. The link takes them straight into booking with the slot already picked and held for them. If they don't use it in time, the next person gets the email. If nobody takes it, the slot goes back on public sale. This runs on its own, so admins don't have to do anything.  
 
 **When:** a customer wants a date/time slot that is already Pending or Approved.
 
@@ -410,7 +423,7 @@ All emails are sent from **noreply@smashcorner-qc.com**. Every customer email in
 - [x] Payment methods: BDO, BPI, GCash, Maya, with dummy details (see §16)
 - [x] Policy: dummy booking & refund policy (see §17)
 - [x] Cancel/reschedule: **admin only**
-- [x] Admin accounts: **5**, all receive notification emails
+- [x] Admin accounts: **5**, all receive notification emails: **2 super-admins** (everything) + **3 admins** (bookings only; no Reports, Activity Log, Management or Admin Accounts)
 - [x] Equipment inventory: entered and managed by admins in the Admin Console
 - [x] Customer accounts: **none**, only admins can sign in
 - [x] Waitlist claim window: **2 hours**
@@ -422,7 +435,8 @@ All emails are sent from **noreply@smashcorner-qc.com**. Every customer email in
 - [ ] Closing time (dummy: 10:00 PM, last slot 9–10 PM)?
 - [ ] Player limits per court (suggested: Tennis 1–4, Pickleball 2–4)?
 - [ ] Real rates, real payment account details and final policy wording (replace the dummy values)
-- [ ] The 5 admins' names and email addresses
+- [ ] The 5 admins' names and email addresses, and which 2 are super-admins
+- [ ] Admin role details: should admins also manage Closures, Payment Methods or Equipment Inventory (currently super-admin only)? Should they be able to Export to Excel (currently yes)?
 - [ ] Hostinger plan: Node.js web-app hosting (recommended) or VPS (see §18)?
 - [ ] Class rentals: in the mockup each class has its own rental count. Should class rentals also come out of the shared Equipment Inventory for those hours?
 - [ ] Should class fees count in Reports (§19)? The mockup only reports court bookings.
@@ -441,56 +455,119 @@ All emails are sent from **noreply@smashcorner-qc.com**. Every customer email in
 
 ## 14. Design & Color Theme
 
-### Brand Palette (matched to the logo)
+### Brand Palette (v4.19: black dark theme)
 
-| Swatch | Hex | Name | Role |
+All colors are CSS custom properties on `:root` in the mockup (Tailwind theme tokens in the build), so a hex changes in one place.
+
+**Brand colors**
+
+| Token | Hex | Name | Role |
 |---|---|---|---|
-| ⬛ | `#000000` | Black | Main background (dark theme), outlines, text on lime/lavender |
-| 🟨 | `#E1E12B` | Smash Lime | Primary brand color + call to action: **Book Now**, Add to Cart, Pay, headings, key prices |
-| 🟪 | `#B894D8` | Corner Lavender | Secondary accent: badge outlines, secondary buttons, hover states, highlights, active tabs |
+| `brand-violet` | `#330c65` | Indian Wells Blue Violet | Feature bands (ticker, CTA band, footer), selected states, active tabs. **Never as text on dark.** |
+| `brand-lime` | `#bdf86c` | Pickleball Green | Main call to action only (**Book Now**, **Book a Court**, Pay); focus rings; selected-state border |
+| `brand-chartreuse` | `#d4d62a` | Smash Corner Yellow Green | Primary-button hover; sparing accent (rating stars, Waitlist/Full badges, Tennis court color) |
+| `brand-lavender` | `#b483d2` | Smash Corner Purple | Links, eyebrows, highlighted heading words, secondary buttons, pending states, prices |
+| `brand-olive` | `#60744f` | Indian Wells Green | Borders, dividers, icons, large text only (slot borders, stepper progress) |
 
-> Hex values were sampled from the logo image and are approximate. Get the exact values from the designer if possible.
+**Brand color integrity:** brand colors are only ever used at 100% of their exact hex. No opacity/alpha variants, no tints, no darken/lighten or `color-mix()`, no filters or blend modes, and no gradients involving a brand color. Anything that should look darker or subtler uses a neutral token instead.
 
-**Supporting shades (to be finalized):**
-- White `#FFFFFF` for body text on black
-- Greys: `#111111` / `#1E1E1E` for cards and surfaces, `#A0A0A0` for muted text
-- Lime hover/pressed: slightly darker lime, e.g. `#C9C921`
-- Lavender hover/pressed: slightly darker lavender, e.g. `#A57FC9`
+**Dark neutrals (no color tint)**
 
-The previous palette (`#5800FF`, `#E900FF`, `#FFC600`) has been **dropped** in favour of the logo colors.
+| Token | Hex | Role |
+|---|---|---|
+| `bg` | `#000000` | Page background |
+| `surface` | `#121212` | Cards, inputs, calendar cells |
+| `surface-raised` | `#1e1e1e` | Modals, drawers, dropdowns, hover states, toasts |
+| `border` | `#2e2e2e` | Default subtle borders |
+| `text` | `#f5f5f5` | Headings and body text |
+| `text-muted` | `#a3a3a3` | Captions, helper text, timestamps |
+| `text-disabled` | `#666666` | Unavailable items |
+| `error` | `#ff6b6b` | Errors and validation (not a brand color) |
+
+Text on lime, chartreuse and lavender fills is black (`#000`); the primary lime/chartreuse button uses violet text.
+
+Previous themes: `#5800FF` / `#E900FF` / `#FFC600` (v0.2); black / lime / lavender (v0.5 – v4.13); dark violet, olive background (v4.14 – v4.16); light off-white (v4.17); violet-tinted near-black with tinted accents (v4.18).
+
+### Layout & Balance
+- **About 70% black, 20% violet and dark neutral surfaces, 10% bright accents.**
+- Navbar: `bg` with a 1px `border` bottom line. Hero: plain black; brand color appears only as solid elements (highlighted words, the primary button).
+- Violet bands: the ticker strip under the hero and the "Ready to play?" CTA band. Footer: violet.
+- Cards and panels: `surface` with `border` borders (court cards keep the lavender badge outline).
+- **Never** lime, chartreuse or lavender as large backgrounds. Photo placeholders use `surface-raised` (or solid violet) with solid accent line art.
+- **Lime discipline:** at most one or two lime elements per viewport. Per-card "Book this court" buttons are secondary (lavender outline); active tabs/nav use violet, not lime.
+
+### Text Colors
+- Headings and body: `text`. Captions/helper: `text-muted`.
+- Highlighted heading words, eyebrows, small callouts: lavender (lime is kept for actions).
+- On violet bands: `text` for body, lavender or lime for highlights.
+
+### Buttons
+- **Primary:** lime background, violet text; hover chartreuse.
+- **Secondary:** transparent, lavender border and text; hover solid lavender with black text.
+- **Disabled:** `surface-raised` background, `text-disabled` text (no opacity).
+- **Ghost/tertiary** (`.btn-text`): text color, underlined; hover `surface-raised`.
+- **Focus:** 2px lime outline with offset. Clipped-corner buttons use an inset 2px lime ring + `bg` gap ring instead, because `clip-path` cuts off an outer outline.
+
+### Booking Calendar / Time Slots
+| State | Look |
+|---|---|
+| Available | `surface`, olive border, `text` |
+| Hover (available) | `surface-raised`, lavender border |
+| Selected (day, start, range) | violet background, 2px lime border, `text` (lime sub-label) |
+| Pending / in cart / held | `surface`, lavender border and text |
+| Booked / unavailable / past | `surface`, dashed `border` border, `text-disabled`, struck-through, not clickable (no opacity) |
+| Full (waitlist) | `surface` with dashed olive border; count in error red |
+| Errors | error red for text, borders, icons |
+
+Admin calendar court colors (`surface-raised` event + solid colored left bar + colored text): Tennis 1 chartreuse, Pickleball 1 lime, Pickleball 2 lavender.
+
+### Other Components
+- **Tags/badges:** solid accent with black text, solid violet with `text`, or outlined (transparent, accent border and text).
+- **Inputs:** `surface`, `border` border, `text`; on focus lavender border + lime focus ring.
+- **Dividers/icons:** `border` or olive; feature icons alternate lavender / olive.
+- **Links:** lavender, underlined on hover.
+- **Charts:** single series in lavender; hover `text`.
+- **Arrows:** every arrow is the same thick arrowhead (a chevron with no shaft, heavy stroke, square ends) in the current text color, rotated for left/right/up/down. Used for link and caption arrows, Back/Next/Previous buttons, month and day navigation, dropdown carets, KPI up/down trend markers and the Demo bar tab. No arrow characters (→ ← ‹ › ▾ ▲ ▼).
+- **Email previews** stay on white "paper" (they mimic a real email).
 
 ### Accessibility: Contrast Rules (WCAG AA)
 
 | Combination | Ratio | Use |
 |---|---|---|
-| White on Black | 21:1 | ✅ All text |
-| Lime `#E1E12B` on Black | ~15:1 | ✅ All text, headings |
-| Black text on Lime | ~15:1 | ✅ Primary CTA buttons |
-| Lavender `#B894D8` on Black | ~8.3:1 | ✅ All text, links |
-| Black text on Lavender | ~8.3:1 | ✅ Secondary buttons, badges |
-| White text on Lavender | ~2.5:1 | ❌ Never; use black text on lavender |
-| Lime on Lavender (or reverse) | ~1.8:1 | ❌ Never for text; side-by-side blocks need a black outline between them (like the logo) |
-| Lime on White | ~1.4:1 | ❌ Never |
-
-**Rule of thumb:** text on lime or lavender is always **black**; text on black is white, lime or lavender.
+| `text` on `bg` | ~19:1 | ✅ |
+| Lime on `bg` | ~17:1 | ✅ |
+| Black on lime / chartreuse / lavender | ~17 / 13 / 7:1 | ✅ Badges, secondary hover |
+| Violet on chartreuse | ~10:1 | ✅ Primary button hover |
+| White on olive | ~5:1 | ✅ |
+| Chartreuse on `bg` | ~13:1 | ✅ |
+| `text-muted` on `bg`/`surface` | ~7–8:1 | ✅ |
+| Error red on `bg` | ~7.5:1 | ✅ |
+| Lavender on `bg` | ~7:1 | ✅ |
+| Off-white on violet | ~15:1 | ✅ |
+| Lime on violet / violet on lime | ~12:1 | ✅ |
+| Lavender on violet | ~5:1 | ✅ |
+| Violet text on `bg`/`surface` | ~1.4:1 | ❌ Never |
+| Olive for body/small text on black | ~4:1 | ❌ Borders, icons, large text only |
+| White text on lime / chartreuse / lavender | — | ❌ Never |
+| Tinted, transparent or gradient brand colors | — | ❌ Never |
+| Lime and chartreuse as large adjacent blocks | — | ❌ Never |
 
 ### Usage Guidelines
-- **Dark-first design:** black background with lime and lavender pops gives the same bold, sporty look as the logo.
-- **Lime is the hero color:** big all-caps headings and every primary action button.
-- **Lavender is the supporting color:** outlines, secondary buttons, tags, hover states. Use it less than lime.
-- **Logo-inspired styling:** thick black outlines, lavender outer borders on featured cards (like the logo badge), and **one clipped corner** on cards and buttons.
-- **Animations:** *(paused for now, see §4: hover keeps the lavender glow/outline but no motion)* lavender glow/outline on hover, lime CTA micro-bounce, ball-bounce loader on booking steps.
+- **Logo-inspired styling:** lavender outer borders on featured cards (like the logo badge) and **one clipped corner** on cards and buttons.
+- **Animations:** *(paused for now, see §4)* lavender glow/outline on hover, CTA micro-bounce, ball-bounce loader on booking steps.
+- The logo itself keeps its own colors (`#BB9AD0`, `#050505`, `#E0DE29`).
 
 ### Admin Console Status Colors
 | Status | Color |
 |---|---|
-| Pending | Lime `#E1E12B` (black text) |
-| Approved | Green (supporting color, e.g. `#22C55E`) |
-| Rejected / Cancelled | Red (supporting color, e.g. `#EF4444`) |
-| Waitlist | Lavender `#B894D8` (black text) |
-| Edited | Grey outline badge with white text |
-
-> Green and red aren't in the brand palette, but they're recommended for admin status badges so meaning is instantly clear.
+| Pending | Solid lavender, black text |
+| Approved / Claimed | Solid lime, black text |
+| Open | Lime outline + lime text |
+| Waitlist | Solid chartreuse, black text |
+| Full | Chartreuse outline + chartreuse text |
+| Rejected / Cancelled | Error-red outline + error text |
+| Notified | Violet with lavender outline and text |
+| Edited | Outline badge |
 
 ### Logo Reference
 
@@ -498,7 +575,7 @@ The badge logo is used in the **splash screen** (§4), animated. The header and 
 
 **What the logo shows:**
 - **Shape language:** a rounded badge with one cut corner (the "corner" in SmashCorner), thick black outline, lavender outer border, a bold check/swoosh and a ball.
-- **Colors:** lime yellow, soft lavender and black, now the site palette above.
+- **Colors:** lime yellow, soft lavender and black. The site palette is now the designer palette above; the logo keeps its own colors.
 
 ### Mobile navigation
 **Rule: no navigation bar ever scrolls sideways on a phone.** Any nav that would not fit collapses into a **hamburger menu** instead: a full-width ☰ button showing the current page or tab (plus its count, if any) that opens a dropdown list. Tapping an item, tapping outside or pressing Escape closes it.
@@ -529,7 +606,7 @@ Small sets of buttons that already fit, like the Book page's Court booking / Cla
 - Don't use Monument Extended for paragraphs, form fields or small text.
 
 ### Open Design Questions
-- [ ] Brand colors: the logo SVG (smash-corner-logo.svg) uses lime `#E0DE29`, lavender `#BB9AD0`, black `#050505`. The site palette currently uses the sampled `#E1E12B` / `#B894D8`. Switch the site to the exact logo values?
+- [x] Brand colors: resolved in v4.14. The site now uses the designer palette (§14); the logo SVG keeps its own colors (`#E0DE29`, `#BB9AD0`, `#050505`).
 - [ ] Monument Extended commercial license: purchased, or does the client already own one?
 - [ ] FullCalendar Scheduler commercial license (needed for the per-court Day view): purchase, or build a custom per-court day grid instead?
 - [ ] Dark-only site, or a light mode too?
@@ -629,10 +706,10 @@ Small sets of buttons that already fit, like the Book page's Court booking / Cla
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | **Next.js** (App Router) + **TypeScript** | Decided; SEO-friendly server rendering, pages + API in one project |
-| Styling | **Tailwind CSS** | Fast to build the custom lime/lavender/black theme |
+| Styling | **Tailwind CSS** | Fast to build the custom dark theme (brand tokens in the Tailwind config) |
 | Animations | **Framer Motion** | Scroll-reveal, page transitions, stepper animations; supports reduced motion. *Not needed while animations are paused (§4); the splash has no dependencies* |
 | Database | **Supabase (PostgreSQL)**, accessed with `@supabase/supabase-js` / `@supabase/ssr` | Decided; bookings, slots, waitlist, inventory, admins, activity log |
-| Admin auth | **Supabase Auth** (email + password), **public sign-ups disabled**; the 5 admins are invited from the Supabase dashboard | Admin-only login, no customer accounts |
+| Admin auth | **Supabase Auth** (email + password), **public sign-ups disabled**; the 5 admins are invited from the Supabase dashboard. Role (`super_admin` or `admin`) is stored in an `admins` table (user_id, name, email, role) | Admin-only login, no customer accounts. RLS policies and API routes check the role, so Reports, Activity Log, Management and Admin Accounts data can only be read by super-admins |
 | Data security | **Row Level Security (RLS)** on every table | Public visitors can only see availability and create bookings; only signed-in admins can read customer data |
 | File uploads (proof of payment) | **Supabase Storage**, **private** bucket; admins view receipts through short-lived signed links | Payment receipts contain personal data and are never public |
 | Classes & registrations | **Supabase Postgres** | `classes` table (title, court, date, start, end, deadline, capacity, fee, rental_fee, rental_qty, status) and `class_registrations` table (class_id, ref, full_name, nickname, age, email, phone, rent, method, pay_ref, proof_path, total, status, reason). Proofs go in the same private receipts bucket. Capacity is checked inside a transaction so two people can't take the last slot |
@@ -669,7 +746,7 @@ Supabase now handles the database, file storage, login and scheduled jobs, so Ho
 
 ## 19. Reports (Admin Analytics)
 
-A **Reports** tab in the Admin Console. Admins pick a date range (Last 7 days, Last 30 days, Month to date, Next 14 days) and a court (All or one court). Every KPI shows the change versus the previous period of the same length.
+A **Reports** tab in the Admin Console, **visible to super-admins only** (§7 Access). Super-admins pick a date range (Last 7 days, Last 30 days, Month to date, Next 14 days) and a court (All or one court). Every KPI shows the change versus the previous period of the same length.
 
 ### KPIs
 
@@ -697,7 +774,7 @@ A **Reports** tab in the Admin Console. Admins pick a date range (Last 7 days, L
 
 ### Implementation notes
 - Computed in Supabase with SQL views or RPC functions, so the numbers come from one source of truth.
-- Charts are a single series in brand lime. The brand colors don't pass the colorblind-safety check as a three-color set, so courts are identified by labels, not colors.
+- Charts are a single series in brand lavender. The brand colors don't pass the colorblind-safety check as a three-color set, so courts are identified by labels, not colors.
 - Optional later: CSV export of the table.
 
 ---
@@ -706,7 +783,7 @@ A **Reports** tab in the Admin Console. Admins pick a date range (Last 7 days, L
 
 - **File:** `mockup/index.html` (single static HTML page, no build step)
 - **Live preview:** https://claude.ai/artifact/B12bUVmSg1uH2ErZJs8dEJ (private until shared from the page's Share menu)
-- **Demo admin login:** admin1@ to admin5@smashcorner-qc.com · password `demo1234`
+- **Demo admin login:** admin1@ to admin5@smashcorner-qc.com · password `demo1234`. **admin1@ and admin2@ are super-admins**; admin3@ to admin5@ are admins (bookings only)
 - A "Demo" bar shows the emails the system would send and can reset the sample data. It is **collapsible** (v4.10): click "Demo ‹" to collapse it into just a small › arrow tab attached to the left edge of the screen (v4.11), click the arrow to open it again; the browser remembers which way you left it.
 - **Sample classes / events (demo only).** On the live site, class registration still starts closed (§7). Dates are relative to today, and each class is placed in a free time on its court so it never clashes with sample bookings:
   | Class | Court | When | Capacity / fee | Rentals | Status |
@@ -777,3 +854,12 @@ A **Reports** tab in the Admin Console. Admins pick a date range (Last 7 days, L
 | v4.11 | Mockup: collapsed Demo bar is now just a small › arrow tab attached to the left edge of the screen (no "Demo" text) |
 | v4.12 | Book → time step: after clicking a start time the grid no longer relabels/shifts to end times; times stay in place, the start is highlighted, and you click the time you finish at (e.g. 9:00 AM for 8–9). 10:00 PM closing added as the last end choice when reachable |
 | v4.13 | Booking received (confirmation) screen: added a "Back to home" button |
+| v4.14 | Theme switched to the designer palette: Indian Wells Blue Violet `#330C65` base (background `#1A0733`), Smash Corner Yellow Green `#D4D62A` (primary), Smash Corner Purple `#B483D2` (secondary), Pickleball Green `#BDF86C` (success/approved), Indian Wells Green `#60744F` (reserved). Text on accents is deep violet; splash background now `#1A0733`; §14 updated |
+| v4.15 | Page background changed to Indian Wells Green `#60744F` (sticky header and splash screen too); cards/panels stay Blue Violet; muted text lightened to `#E4DCEE`; §14 contrast rules updated for the green background |
+| v4.16 | Exact brand hex codes from the designer replace the sampled ones: Indian Wells Green `#60744F`, Indian Wells Blue Violet `#330C65`, Smash Corner Purple `#B483D2`, Pickleball Green `#BDF86C`, Smash Corner Yellow Green `#D4D62A` |
+| v4.17 | Light theme: off-white `#FAF9F6` page with violet header, footer, hero and CTA band; all colors moved to named `--brand-*` / semantic tokens on `:root`. Pickleball Green is now the primary CTA (hover Yellow Green); headings/links violet on light, lime on violet; captions olive. New slot states (available white/olive border, selected violet, pending lavender, booked gray). Status colors reassigned (Pending lavender, Waitlist/Full chartreuse). Error red `#C62828`. Splash background now violet. §14 rewritten |
+| v4.18 | Dark theme: near-black `#0E0B12` page, `#17131D` surfaces, `#211B29` raised, off-white text, `#A8A3AF` muted, error `#FF6B6B`. Header is near-black with a border line; hero has a radial violet glow; ticker, CTA band and footer are violet. Lime reserved for main CTAs (court-card buttons now secondary; active tabs violet). Secondary buttons lavender outline; links lavender; badges and pending states are 15% accent tints; selected slots violet with lime border; booked `#1C1922`. Splash background `#0E0B12`. §14 rewritten |
+| v4.19 | Black dark theme: `#000000` page, neutral grays (`#121212`, `#1e1e1e`, `#2e2e2e`, text `#f5f5f5`, muted `#a3a3a3`, disabled `#666666`). Brand-color integrity rule: brand colors only at their exact hex, no tints/alpha/gradients/filters. Removed the hero glow and all 15% tints; badges are solid (black text) or outlined; pending = lavender outline on surface; booked = dashed border + disabled text (no opacity); disabled buttons use neutrals; secondary hover is solid lavender with black text. Splash background `#000000` |
+| v4.20 | All arrow symbols replaced with one thick arrowhead icon (chevron, no shaft), rotated per direction: links/captions, Back/Next/Previous, month/day nav, dropdown carets, KPI trend markers; Demo bar tab chevron thickened. §14 Other Components updated |
+| v4.21 | Bug fix: mockup showed raw JavaScript as page text when opened with a dev server that injects a reload script (e.g. VS Code Live Server). Cause: the new arrowhead icon wrote an unescaped closing svg tag inside a script string; it is now escaped like the rest of the file. Rule: closing tags inside script strings are always written escaped |
+| v4.22 | Admin roles: 2 **super-admins** (everything) + 3 **admins** (manage bookings: Dashboard, Court Bookings, Classes & Events, Calendar). Only super-admins see Reports (analytics) and the Activity Log; Management and Admin Accounts are also super-admin only. Hidden sections are blocked server-side too (role in an `admins` table, checked by RLS). Admins' dashboard hides revenue. Mockup: admin1@/admin2@ are super-admins; role shown in the sidebar and Admin Accounts |

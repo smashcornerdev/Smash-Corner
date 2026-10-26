@@ -1,0 +1,52 @@
+{
+  "name": "smashcorner",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:db": "node supabase/tests/db.test.mjs",
+    "test:e2e": "tsx --tsconfig scripts/tsconfig.json --env-file=.env.local --import ./scripts/register.mjs scripts/e2e.ts",
+    "clerk:invite": "tsx --tsconfig scripts/tsconfig.json --env-file=.env.local --import ./scripts/register.mjs scripts/clerk-invite.ts"
+  },
+  "dependencies": {
+    "@clerk/backend": "^2.33.8",
+    "@clerk/nextjs": "^6.39.8",
+    "@clerk/themes": "^2.4.57",
+    "@fullcalendar/core": "^6.1.22",
+    "@fullcalendar/daygrid": "^6.1.22",
+    "@fullcalendar/interaction": "^6.1.22",
+    "@fullcalendar/list": "^6.1.22",
+    "@fullcalendar/react": "^6.1.22",
+    "@fullcalendar/resource": "^6.1.22",
+    "@fullcalendar/resource-timegrid": "^6.1.22",
+    "@fullcalendar/timegrid": "^6.1.22",
+    "@hookform/resolvers": "^3.10.0",
+    "@react-email/components": "^0.5.7",
+    "@react-email/render": "^1.4.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "next": "^15.5.28",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-hook-form": "^7.91.0",
+    "resend": "^4.8.0",
+    "server-only": "^0.0.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.28",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

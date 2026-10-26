@@ -1,4 +1,4 @@
-I "use client";
+"use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
@@ -121,7 +121,7 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 
 export default function SplashScreen({
   onFinish,
-  background = "#141118",
+  background = "#000000",
   size = "min(96px, 19.2vw)",
   speed = 1,
   hold = 450,
@@ -341,6 +341,7 @@ export default function SplashScreen({
     let t0 = 0;
     let offset = 0;
     let finished = false;
+    let cur = 0; // current time in the animation, for skipping
 
     const finish = () => {
       if (finished) return;
@@ -350,6 +351,7 @@ export default function SplashScreen({
       } catch {
         /* ignore */
       }
+      document.documentElement.classList.remove("splash-on");
       if (exit) setDone(true);
       finishRef.current?.();
     };
@@ -357,6 +359,7 @@ export default function SplashScreen({
     const tick = (now: number) => {
       if (!t0) t0 = now;
       const tt = offset + (now - t0) * speed;
+      cur = tt;
       render(Math.min(tt, tEnd));
       if (tt >= tEnd) finish();
       else raf = requestAnimationFrame(tick);
@@ -373,6 +376,18 @@ export default function SplashScreen({
 
     start(reduceMotion ? tSet1 : 0);
 
+    // Skippable (spec §4): a click or tap, Esc, Enter or Space jumps straight to the fade-out.
+    // While it plays the page behind can't be scrolled or clicked.
+    const skip = () => {
+      if (!finished && cur < tExit0) start(Math.max(tExit0, tSet1));
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Enter" || e.key === " ") skip();
+    };
+    overlay.addEventListener("click", skip);
+    window.addEventListener("keydown", onKey);
+    document.documentElement.classList.add("splash-on");
+
     readyRef.current?.({
       replay: () => start(0),
       seek: (ms: number) => {
@@ -382,7 +397,12 @@ export default function SplashScreen({
       duration: tEnd,
     });
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      overlay.removeEventListener("click", skip);
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.classList.remove("splash-on");
+    };
   }, [done, speed, hold, exit, oncePerSession, maskA, maskB]);
 
   if (done) return null;
@@ -401,6 +421,7 @@ export default function SplashScreen({
         placeItems: "center",
         background,
         overflow: "hidden",
+        cursor: "pointer",
       }}
     >
       <noscript>

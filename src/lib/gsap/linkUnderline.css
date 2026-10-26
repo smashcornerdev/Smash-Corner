@@ -1,0 +1,13 @@
+/* GSAP hook collection (stored only, not used yet; not imported anywhere). */
+
+/* CSS-only approach */
+/* Link underline that wipes in from the left on hover and out to the right. */
+.link::after {
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s;
+}
+.link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
