@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Lexend_Deca, Unbounded } from "next/font/google";
 import SplashScreen from "@/components/SplashScreen";
+import BorderTrace from "@/components/site/BorderTrace";
 import { SITE } from "@/lib/config";
 import "./globals.css";
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* plays on every load / refresh, skippable (spec §4) */}
         <SplashScreen />
         {children}
+        <BorderTrace />
       </body>
     </html>
   );

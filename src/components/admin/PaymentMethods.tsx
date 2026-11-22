@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { paymentMethodAction, reorderPaymentMethodsAction } from "@/app/actions/admin";
-import { Modal } from "@/components/admin/Modal";
+import ModalButton, { Modal } from "@/components/admin/Modal";
 import { ActBtn } from "@/components/admin/ReasonForm";
 import type { PaymentMethod } from "@/lib/types";
 
 type M = Pick<PaymentMethod, "id" | "name" | "details" | "qr_url" | "active">;
 
-/* Management → Payment Methods (spec §16; mockup vMethods): drag a card to reorder
+/* Management → Payment Methods (spec §16; mockup vMethods): the list (the note and + Add are in the page, v6.01). Drag a card to reorder
    (mouse: the whole card; touch: the ⠿ handle; keyboard: arrow keys on the handle), Add / Edit in a modal. */
 export default function PaymentMethods({ methods }: { methods: M[] }) {
   const router = useRouter();
@@ -85,10 +85,6 @@ export default function PaymentMethods({ methods }: { methods: M[] }) {
   const shown = order.map((id) => byId.get(id)).filter((m): m is M => !!m);
   return (
     <>
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-        <p className="muted" style={{ maxWidth: "68ch" }}>These are the payment options customers see on the Pay page, in this order. <b>Drag a payment method to change the order.</b> Each has a name, payment details (account name, number, instructions) and an optional QR code image. Hidden methods stay saved but customers can&apos;t choose them.</p>
-        <button type="button" className="btn btn-lime" onClick={() => setEditing("new")}>+ Add payment method</button>
-      </div>
       {shown.length ? (
         <div className="pm-list" ref={list}>
           {shown.map((m) => (
@@ -100,16 +96,16 @@ export default function PaymentMethods({ methods }: { methods: M[] }) {
                 <div className="pm-details">{m.details}</div>
               </div>
               <div className="acts pm-acts">
-                <button type="button" className="btn btn-lav btn-sm" onClick={() => setEditing(m)}>Edit</button>
-                <ActBtn action={paymentMethodAction} fields={{ id: m.id, op: "toggle" }} label={m.active ? "Hide" : "Show"} cls="btn-ghost" />
-                <ActBtn action={paymentMethodAction} fields={{ id: m.id, op: "delete" }} label="Delete" cls="btn-danger" />
+                <button type="button" className="btn btn-lav btn-sm" onClick={() => setEditing(m)} data-trace>Edit</button>
+                <ActBtn action={paymentMethodAction} fields={{ id: m.id, op: "toggle" }} label={m.active ? "Hide" : "Show"} cls="btn-ghost" trace />
+                <ActBtn action={paymentMethodAction} fields={{ id: m.id, op: "delete" }} label="Delete" cls="btn-danger" confirm={`Delete ${m.name}? Customers will no longer see it on the pay page. This can't be undone.`} trace />
               </div>
             </article>
           ))}
         </div>
       ) : <div className="empty">No payment methods yet. Customers can&apos;t pay until you add one.</div>}
       {editing ? (
-        <Modal eyebrow="Payment methods" title={editing === "new" ? "Add payment method" : `Edit ${editing.name}`} onClose={() => setEditing(null)}>
+        <Modal eyebrow="Payment methods" title={editing === "new" ? "Add payment method" : `Edit ${editing.name}`} intro outro onClose={() => setEditing(null)}>
           <MethodForm m={editing === "new" ? undefined : editing} />
         </Modal>
       ) : null}
@@ -118,7 +114,12 @@ export default function PaymentMethods({ methods }: { methods: M[] }) {
   );
 }
 
-function Submit({ label }: { label: string }) { const { pending } = useFormStatus(); return <button className="btn btn-lime" type="submit" disabled={pending}>{pending ? "Saving…" : label}</button>; }
+/* + Add payment method (v6.01: on its own, so it shows with the tab's note before the list has loaded) */
+export function AddMethodButton() {
+  return <ModalButton label="+ Add payment method" eyebrow="Payment methods" title="Add payment method" trace intro outro><MethodForm /></ModalButton>;
+}
+
+function Submit({ label }: { label: string }) { const { pending } = useFormStatus(); return <button className="btn btn-lime" type="submit" disabled={pending} data-trace>{pending ? "Saving…" : label}</button>; }
 
 function MethodForm({ m }: { m?: M }) {
   const [qr, setQr] = useState<string | null>(m?.qr_url ?? null);
@@ -145,7 +146,7 @@ function MethodForm({ m }: { m?: M }) {
         <div className="pm-upload">
           {qr ? <img className="pm-qr" src={qr} alt="QR code preview" /> : <div className="pm-qr none">No QR</div>}
           <div className="stack" style={{ gap: 8 }}>
-            <label className="btn btn-ghost btn-sm" htmlFor="pmQrIn">{qr ? "Replace image" : "Upload image"}</label>
+            <label className="btn btn-ghost btn-sm" htmlFor="pmQrIn" data-trace>{qr ? "Replace image" : "Upload image"}</label>
             <input type="file" id="pmQrIn" name="qr" ref={file} accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => pick(e.target.files?.[0])} />
             {qr ? <button type="button" className="linkbtn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove QR code</button> : null}
             <span className="muted" style={{ fontSize: ".8rem" }}>PNG, JPG or WebP, max 5 MB. Use the QR exported from the bank or e-wallet app.</span>
@@ -154,7 +155,7 @@ function MethodForm({ m }: { m?: M }) {
         </div>
       </div>
       <label className="check"><input type="checkbox" name="active" defaultChecked={m ? m.active : true} /><span>Show to customers on the Pay page</span></label>
-      <div className="row"><Submit label={m ? "Save changes" : "Add payment method"} /><button className="btn btn-ghost" type="button" data-close="1">Cancel</button></div>
+      <div className="row"><Submit label={m ? "Save changes" : "Add payment method"} /><button className="btn btn-ghost" type="button" data-close="1" data-trace>Cancel</button></div>
     </form>
   );
 }

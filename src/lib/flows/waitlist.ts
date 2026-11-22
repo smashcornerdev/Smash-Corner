@@ -64,21 +64,3 @@ export async function releaseHours(courtId: string, date: string, hours: number[
   for (const h of hours) await processSlot(courtId, date, h);
 }
 
-/** cron: expire unused claims (next person is emailed) and entries whose slot has started */
-export async function expireWaitlist() {
-  const now = new Date().toISOString();
-  const lapsed = must(await db().from("waitlist").select("*").eq("branch_id", BRANCH_ID).eq("status", "notified").lte("claim_expires_at", now)) as WaitlistEntry[];
-  for (const w of lapsed) {
-    await db().from("waitlist").update({ status: "expired" }).eq("id", w.id);
-    await db().from("slot_locks").delete().eq("waitlist_id", w.id);
-    // a cart hold made from this claim keeps its own lock until it expires
-    await processSlot(w.court_id, w.date, w.hour);
-  }
-  const open = must(await db().from("waitlist").select("id, date, hour").eq("branch_id", BRANCH_ID).in("status", ["applied", "waiting", "notified"])) as Pick<WaitlistEntry, "id" | "date" | "hour">[];
-  const started = open.filter((w) => slotStarted(w.date, w.hour)).map((w) => w.id);
-  if (started.length) {
-    await db().from("waitlist").update({ status: "expired" }).in("id", started);
-    await db().from("slot_locks").delete().in("waitlist_id", started);
-  }
-  return lapsed.length + started.length;
-}

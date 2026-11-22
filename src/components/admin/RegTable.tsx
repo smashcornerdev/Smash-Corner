@@ -9,7 +9,7 @@ import { ago, fmtDate, fmtH, fmtTs } from "@/lib/time";
 import type { ClassReg, ClassRow } from "@/lib/types";
 
 /* class registrations list (spec §7 Classes & Events) */
-export function RegTable({ regs, classes, back, showClass = true }: { regs: ClassReg[]; classes: ClassRow[]; back: string; showClass?: boolean }) {
+export function RegTable({ regs, classes, back, showClass = true, tools }: { regs: ClassReg[]; classes: ClassRow[]; back: string; showClass?: boolean; tools?: React.ReactNode }) {
   const kOf = (r: ClassReg) => classes.find((k) => k.id === r.class_id)!;
   const rows: Row[] = regs.map((r) => {
     const k = kOf(r);
@@ -27,15 +27,15 @@ export function RegTable({ regs, classes, back, showClass = true }: { regs: Clas
         hist ? <small key="s" style={{ maxWidth: 220, display: "block" }}>{r.reason || "—"}{r.refund_pct != null ? <><br />Refund: {r.refund_pct}%</> : null}</small>
           : <Fragment key="s"><Pill s={r.status} /><br /><small className="muted">{ago(r.created_at)}</small></Fragment>,
         <div className="acts" key="a">
-          <Link className="btn btn-ghost btn-sm" href={`/admin/classes/reg/${r.id}`}>View</Link>
+          <Link className="btn btn-ghost btn-sm" href={`/admin/classes/reg/${r.id}`} data-trace>View</Link>
           {r.status === "pending" || r.status === "verify" ? (
-            <><ActBtn action={approveRegAction} fields={{ id: r.id, back }} label={r.status === "verify" ? "Confirm payment" : "Approve"} />
-              <Link className="btn btn-danger btn-sm" href={`/admin/classes/reg/${r.id}#reject`}>Reject</Link></>
+            <><ActBtn action={approveRegAction} fields={{ id: r.id, back }} label={r.status === "verify" ? "Confirm payment" : "Approve"} trace />
+              <Link className="btn btn-danger btn-sm" href={`/admin/classes/reg/${r.id}#reject`} data-trace>Reject</Link></>
           ) : null}
         </div>,
       ],
     };
   });
   const head = ["Ref", ...(showClass ? ["Class"] : []), "Participant", "Contact", "Rental", "Payment", "Total", "Status", "Actions"];
-  return <DataTable head={head} rows={rows} num={[showClass ? 6 : 5]} />;
+  return <DataTable head={head} rows={rows} num={[showClass ? 6 : 5]} tools={tools} />;
 }

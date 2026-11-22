@@ -1,15 +1,17 @@
 import "server-only";
 import { BRANCH_ID, PAY_HOURS } from "../config";
 import { db, dbErrorIs, must } from "../supabase";
-import { getActiveMethods } from "../catalog";
+import { getActiveMethods, getCourts } from "../catalog";
 import { payUrl } from "../links";
 import { logAction } from "../log";
 import { uploadReceipt } from "../storage";
-import { addDaysKey, hourTs, todayKey, withinReminder } from "../time";
+import { hourTs, withinReminder } from "../time";
 import { regView } from "./views";
 import { FlowError } from "./bookings";
+import { recordRegs, unrecord } from "../sheets";
 import * as M from "../email/messages";
 import type { Admin, ClassReg, ClassRow } from "../types";
+import type { BookableClass } from "@/components/book/ClassRegistration";
 
 /* Class / event registration (spec §6, §7): same approve-then-pay lifecycle as bookings, one participant each. */
 
@@ -37,6 +39,23 @@ export async function classesWithCounts(filter: { bookable?: boolean } = {}): Pr
     };
   });
   return filter.bookable ? rows.filter((r) => r.state === "open" || r.state === "full") : rows;
+}
+
+/** Book page → Class / event tab list (sent with the page when it opens on that tab, otherwise fetched from /api/classes on first click) */
+export async function bookableClasses(): Promise<BookableClass[]> {
+  const [courts, rows] = await Promise.all([getCourts(), classesWithCounts({ bookable: true })]);
+  return rows.map(({ k, taken, rented, state }) => {
+    const c = courts.find((x) => x.id === k.court_id);
+    return {
+      id: k.id, title: k.title, court: c?.name ?? k.court_id, date: k.date, start: k.start_hour, end: k.end_hour, deadline: k.deadline,
+      fee: k.fee, rentalFee: k.rental_fee, rentalLeft: Math.max(0, k.rental_qty - rented), rentalItem: c?.type === "tennis" ? "Tennis Racket" : "Pickleball Paddle",
+      seatsLeft: Math.max(0, k.capacity - taken), capacity: k.capacity, full: state === "full",
+    };
+  });
+}
+/** "N open" badge on the Class / event tab: just the number, so the class list itself still loads only when the tab is opened */
+export async function openClassCount(): Promise<number> {
+  return (await classesWithCounts({ bookable: true })).filter((r) => r.state === "open").length;
 }
 
 export async function register(inp: { classId: string; name: string; nickname: string; age: number; email: string; phone: string; rent: boolean }) {
@@ -83,6 +102,7 @@ export async function approveReg(admin: Admin, id: string): Promise<string> {
   must(await db().from("class_registrations").update({ status: "approved", ...(withinReminder(k.date, k.start_hour) ? { reminded_at: new Date().toISOString() } : {}) }).eq("id", r.id));
   await logAction(admin, paid ? "Class payment verified" : "Class registration approved", r.ref, `${k.title} · ${r.name}`);
   await M.mailClassConfirmed(r, v, paid);
+  await recordRegs([r.id]);
   return `${r.ref} confirmed. Participant emailed.`;
 }
 
@@ -122,37 +142,8 @@ export async function cancelClass(admin: Admin, classId: string): Promise<string
     await M.mailClassCancelled(r, await regView(r, k), paid);
   }
   await logAction(admin, "Class cancelled", k.title, `${regs.length} registration(s) cancelled`);
+  await unrecord("class", regs.filter((r) => r.status === "approved").map((r) => r.ref));
   return `"${k.title}" cancelled${regs.length ? `. ${regs.length} participant(s) emailed.` : "."}`;
 }
 
-export async function expireUnpaidRegs(): Promise<number> {
-  const due = must(await db().from("class_registrations").select("*").eq("status", "awaiting").lte("pay_due_at", new Date().toISOString())) as ClassReg[];
-  for (const r of due) {
-    await db().from("class_registrations").update({ status: "unpaid", reason: "Not paid within 24 hours of approval" }).eq("id", r.id);
-    const k = (await db().from("classes").select("*").eq("id", r.class_id).single()).data as ClassRow;
-    await logAction(null, "Expired (not paid)", r.ref, k.title);
-    await M.mailClassExpired(r, await regView(r, k));
-  }
-  return due.length;
-}
 
-/** cron: reminder email 24 h before the class starts, once per confirmed participant */
-export async function remindUpcomingRegs(): Promise<number> {
-  const today = todayKey();
-  const classes = must(await db().from("classes").select("*").eq("branch_id", BRANCH_ID).neq("status", "cancelled")
-    .gte("date", today).lte("date", addDaysKey(today, 1))) as ClassRow[];
-  const due = classes.filter((k) => hourTs(k.date, k.start_hour) > Date.now() && withinReminder(k.date, k.start_hour));
-  if (!due.length) return 0;
-  const regs = must(await db().from("class_registrations").select("*").in("class_id", due.map((k) => k.id))
-    .eq("status", "approved").is("reminded_at", null)) as ClassReg[];
-  let n = 0;
-  for (const r of regs) {
-    // claim the row first so an overlapping run can't email twice
-    const claimed = must(await db().from("class_registrations").update({ reminded_at: new Date().toISOString() })
-      .eq("id", r.id).is("reminded_at", null).select("id")) as { id: string }[];
-    if (!claimed.length) continue;
-    await M.mailClassReminder(r, await regView(r, due.find((k) => k.id === r.class_id)!), `reminder:${r.id}`);
-    n++;
-  }
-  return n;
-}

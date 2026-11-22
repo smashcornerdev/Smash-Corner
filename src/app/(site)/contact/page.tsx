@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Arrow } from "@/components/art";
 import ContactForm from "@/components/site/ContactForm";
+import FaqList from "@/components/site/FaqList";
 import { PageTop, SecHead } from "@/components/ui";
 import { L, SITE } from "@/lib/config";
 import { FAQ } from "@/lib/faq";
@@ -48,14 +49,7 @@ export default function ContactPage() {
       </section>
       <section className="sec wrap" id="faq-sec" style={{ paddingTop: 8 }}>
         <SecHead eyebrow="FAQ" title="Questions, answered" />
-        <div className="stack" style={{ gap: 8, maxWidth: 860 }}>
-          {FAQ.map(([q, a]) => (
-            <details className="card" style={{ padding: 0 }} key={q}>
-              <summary style={{ padding: "16px 18px", cursor: "pointer", fontWeight: 600 }}>{q}</summary>
-              <p className="muted" style={{ padding: "0 18px 18px" }}>{a}</p>
-            </details>
-          ))}
-        </div>
+        <FaqList items={FAQ} />
         <p style={{ marginTop: 20 }}><Link href="/policy">Read the full Booking Policy <Arrow /></Link></p>
       </section>
     </>

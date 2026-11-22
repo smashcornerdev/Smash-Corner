@@ -3,7 +3,10 @@ export type Court = {
   id: string; name: string; type: CourtType; rate: number; min_players: number; max_players: number;
   note: string; surface: string; size: string; sort_order: number;
 };
-export type EquipmentItem = { id: string; name: string; type: CourtType; rate: number; sort_order: number };
+/** unit: how `rate` is charged: "hour" = per item, per booked hour; "session" = per item, once per booking (spec §7, v6.05).
+ *  deleted: removed by an admin; kept so past bookings can still show its name */
+export type RateUnit = "hour" | "session";
+export type EquipmentItem = { id: string; name: string; type: CourtType; rate: number; unit: RateUnit; sort_order: number; deleted?: boolean };
 export type InventoryRow = { item_id: string; owned: number; out_of_service: number };
 export type Equipment = Record<string, number>;
 

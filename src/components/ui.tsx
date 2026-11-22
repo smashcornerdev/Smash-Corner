@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
 import { ST_LABEL } from "@/lib/types";
+import SectionReveal from "@/components/site/SectionReveal";
 
+/* Top of every public page except Home; also brings the page motion (entrance + scroll reveals, spec §4) */
 export function PageTop({ eyebrow, title, lead }: { eyebrow: string; title: ReactNode; lead?: ReactNode }) {
   return (
     <section className="wrap page-top">
+      <SectionReveal intro />
       <p className="eyebrow">{eyebrow}</p>
-      <h1 style={{ marginTop: 10 }}>{title}</h1>
+      <h1 style={{ marginTop: 10 }}><span className="ln">{title}</span></h1>
       {lead ? <p className="lead">{lead}</p> : null}
     </section>
   );

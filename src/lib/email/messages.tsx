@@ -6,7 +6,9 @@ import { peso } from "../format";
 import { fmtDateLong, fmtH, fmtRange, fmtTs } from "../time";
 import type { PaymentMethod } from "../types";
 
-/* Every email in spec §10, built from plain data so the flows stay readable. */
+/* Every email in spec §10, built from plain data so the flows stay readable.
+   The every-minute job's emails (request / registration expired, 24-hour reminders, waitlist slot free from the job) are sent
+   by the tick Edge Function with the same wording: supabase/functions/tick/jobs.ts. */
 
 export type BookingView = { id: string; ref: string; court: string; date: string; hours: number[]; players: number; equipment: string; total: number };
 export type RegView = { id: string; ref: string; title: string; court: string; date: string; start: number; end: number; name: string; nickname: string; age: number; rental: string; total: number };
@@ -93,28 +95,12 @@ export async function mailRejected(p: Person, l: BookingView[], reason: string, 
       extra: <>{reason ? <p><b>Reason:</b> {reason}</p> : null}<p>{paid ? "Your payment will be refunded in full within 3–5 business days to your original payment method." : "No payment was taken."}</p></> },
   });
 }
-export async function mailExpired(p: Person, l: BookingView[]) {
-  await sendMail({
-    to: p.email, subject: `Booking request expired: ${refsOf(l)}`, key: `expired:${l[0].id}`,
-    mail: { audience: "customer", preview: "We didn't receive payment in time.", title: "Your request expired", greeting: first(p),
-      intro: <>we did not receive your payment within 24 hours, so your booking request has expired and the time was released.</>,
-      tables: tablesFor(l), button: { label: "Book again", href: `${SITE.url}/book` } },
-  });
-}
 export async function mailCancelled(p: Person, b: BookingView, reason: string, refundPct: number) {
   await sendMail({
     to: p.email, subject: `Booking cancelled – ${b.ref}`,
     mail: { audience: "customer", preview: "Your booking has been cancelled.", title: "Booking cancelled", greeting: first(p),
       intro: <>your booking has been cancelled.</>, tables: tablesFor([b]),
       extra: <><p><b>Reason:</b> {reason}</p><p><b>Refund:</b> {refundPct}% ({peso(Math.round((b.total * refundPct) / 100))}), sent to your original payment method within 3–5 business days.</p></> },
-  });
-}
-export async function mailReminder(p: Person, b: BookingView, key: string) {
-  await sendMail({
-    to: p.email, subject: `Reminder: you're booked ${fmtDateLong(b.date)} – ${b.ref}`, key,
-    mail: { audience: "customer", preview: `${b.court}, ${fmtRange(b.hours)}. See you on court!`, title: "See you on court soon", greeting: first(p),
-      intro: <>a reminder that your booking starts within the next 24 hours. Please arrive 10 minutes early.</>,
-      tables: [...tablesFor([b]), { rows: [["Venue", SITE.address], ["Hours", SITE.hours]] }] },
   });
 }
 export async function mailEdited(p: Person, b: BookingView, old: { court: string; date: string; hours: number[]; total: number }) {
@@ -220,22 +206,6 @@ export async function mailClassRejected(p: Person, r: RegView, reason: string, p
     mail: { audience: "customer", preview: "Your registration was not approved.", title: "Registration not approved", greeting: first(p),
       intro: <>we could not approve your registration for <b>{r.title}</b>.</>, tables: [{ rows: regRows(r) }],
       extra: <>{reason ? <p><b>Reason:</b> {reason}</p> : null}<p>{paid ? "Your payment will be refunded in full within 3–5 business days to your original payment method." : "No payment was taken."}</p></> },
-  });
-}
-export async function mailClassReminder(p: Person, r: RegView, key: string) {
-  await sendMail({
-    to: p.email, subject: `Reminder: ${r.title} on ${fmtDateLong(r.date)} – ${r.ref}`, key,
-    mail: { audience: "customer", preview: `${r.court}, ${fmtH(r.start)} – ${fmtH(r.end)}. See you there!`, title: "See you in class soon", greeting: first(p),
-      intro: <>a reminder that <b>{r.title}</b> starts within the next 24 hours. Please arrive 10 minutes early.</>,
-      tables: [{ rows: regRows(r) }, { rows: [["Venue", SITE.address], ["Hours", SITE.hours]] }] },
-  });
-}
-export async function mailClassExpired(p: Person, r: RegView) {
-  await sendMail({
-    to: p.email, subject: `Class registration expired: ${r.ref}`, key: `expired:${r.id}`,
-    mail: { audience: "customer", preview: "We didn't receive payment in time.", title: "Your registration expired", greeting: first(p),
-      intro: <>we did not receive your payment within 24 hours, so your registration has expired and the slot was released.</>,
-      tables: [{ rows: regRows(r) }], button: { label: "Register again", href: `${SITE.url}/book?mode=class` } },
   });
 }
 export async function mailClassCancelled(p: Person, r: RegView, paid: boolean) {

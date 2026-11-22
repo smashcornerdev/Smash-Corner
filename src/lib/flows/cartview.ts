@@ -1,11 +1,11 @@
 import "server-only";
-import { getCourts, getEquipment } from "../catalog";
+import { getCourts, getAllEquipment } from "../catalog";
 import { equipmentText } from "../pricing";
 import { getCart } from "./bookings";
 import type { CartLine } from "@/components/book/CartList";
 
 export async function cartLines(session: string | null): Promise<CartLine[]> {
-  const [cart, courts, items] = await Promise.all([getCart(session), getCourts(), getEquipment()]);
+  const [cart, courts, items] = await Promise.all([getCart(session), getCourts(), getAllEquipment()]);
   return cart.map((h) => {
     const c = courts.find((x) => x.id === h.court_id);
     return {

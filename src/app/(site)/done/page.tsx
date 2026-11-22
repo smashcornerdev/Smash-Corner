@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import DoneIntro from "@/components/site/DoneIntro";
 import { getCourts } from "@/lib/catalog";
 import { getOrder, orderBookings } from "@/lib/flows/bookings";
 import { peso } from "@/lib/format";
@@ -19,6 +20,7 @@ export default async function DonePage({ searchParams }: { searchParams: Promise
   const courts = await getCourts();
   return (
     <section className="wrap sec">
+      <DoneIntro />
       <div className="done-hero">
         <p className="eyebrow">Submitted</p>
         <h1>Request sent</h1>
@@ -37,8 +39,8 @@ export default async function DonePage({ searchParams }: { searchParams: Promise
             </div>
           ))}
         </div>
-        <div className="banner">To cancel or reschedule, <Link href="/contact">contact us</Link>. Online cancellation is not available.</div>
-        <div className="row"><Link href="/" className="btn btn-lime">Back to home</Link></div>
+        <div className="banner no-edge">To cancel or reschedule, <Link href="/contact">contact us</Link>. Online cancellation is not available.</div>
+        <div className="row"><Link href="/" className="btn btn-lime no-edge">Back to home</Link></div>
       </div>
     </section>
   );

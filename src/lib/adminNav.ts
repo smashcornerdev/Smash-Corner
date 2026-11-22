@@ -61,7 +61,7 @@ export async function getGroups(admin: Admin): Promise<Group[]> {
     },
     {
       id: "mgmt", label: "Management", superOnly: true, tabs: [
-        { href: "/admin/closures", label: "Closures" }, { href: "/admin/payment-methods", label: "Payment Methods" }, { href: "/admin/inventory", label: "Equipment Inventory" },
+        { href: "/admin/closures", label: "Closures" }, { href: "/admin/payment-methods", label: "Payment Methods" }, { href: "/admin/inventory", label: "Equipment Inventory" }, { href: "/admin/blacklist", label: "Blacklist" },
       ],
     },
     { id: "calendar", label: "Calendar", tabs: [{ href: "/admin/calendar", label: "Calendar" }] },

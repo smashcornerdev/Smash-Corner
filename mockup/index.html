@@ -208,8 +208,7 @@ textarea.inp{min-height:96px;resize:vertical}
 .court-card .meta{display:flex;justify-content:space-between;gap:12px;font-size:.88rem;color:var(--muted)}
 .court-card .price{font-family:var(--display);color:var(--accent);font-size:1.1rem}
 .court-card .btn{margin-top:auto;align-self:flex-start}
-.feat{display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--brand-lavender)}
-.feat:nth-child(even){border-top-color:var(--brand-olive)}
+.feat{display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--surface);border:1px solid var(--line)}
 .feat .ic{width:44px;height:44px;color:var(--brand-lavender)}
 .feat:nth-child(even) .ic{color:var(--brand-olive)}
 .quote{padding:26px;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;gap:16px}
@@ -229,6 +228,7 @@ textarea.inp{min-height:96px;resize:vertical}
 .cta-band p{max-width:46ch}
 .person .ph{aspect-ratio:1}
 .person h3{margin-top:14px}
+.person h3:first-child{margin-top:0}
 .value{padding:24px;border:2px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .value .num{font-family:var(--display);color:var(--accent-2);font-size:.85rem}
 .spec{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:.9rem}
@@ -856,7 +856,6 @@ h1{font-weight:900}
 .court-card:hover{transform:translateY(-6px) rotate(-.8deg)}
 .feat .ic{width:60px;height:60px;padding:13px;border-radius:50%;background:var(--surface-raised)}
 .amen svg{width:46px;height:46px;padding:9px;border-radius:50%;background:var(--surface-raised)}
-.quote{border-top:4px solid var(--brand-chartreuse)}
 .quote .stars{font-size:1.15rem}
 .value{border-color:var(--brand-olive)}
 .value .num{width:fit-content;font-family:var(--sport);font-weight:800;font-size:.95rem;letter-spacing:.08em;text-transform:uppercase;padding:.1em .7em;background:var(--brand-lavender);color:var(--on-accent);border-radius:6px;transform:skewX(-8deg)}
@@ -1412,8 +1411,7 @@ const ART={
   bath:'<rect x="60" y="45" width="120" height="150" rx="4"/><line x1="60" y1="225" x2="340" y2="225"/><path d="M80 225 v-20 q40 18 80 0 v20"/><path d="M120 205 v-16 h14"/><line x1="220" y1="45" x2="220" y2="225"/><line x1="280" y1="45" x2="280" y2="225"/><line x1="340" y1="45" x2="340" y2="225"/><line x1="220" y1="105" x2="340" y2="105"/><line x1="220" y1="165" x2="340" y2="165"/><circle class="f" cx="100" cy="85" r="5"/>',
   amen:'<rect x="50" y="50" width="70" height="180"/><rect x="120" y="50" width="70" height="180"/><line x1="70" y1="80" x2="100" y2="80"/><line x1="140" y1="80" x2="170" y2="80"/><circle class="f" cx="108" cy="140" r="4"/><circle class="f" cx="178" cy="140" r="4"/><line x1="220" y1="190" x2="350" y2="190" stroke-width="8"/><line x1="235" y1="190" x2="235" y2="230"/><line x1="335" y1="190" x2="335" y2="230"/><rect x="290" y="110" width="26" height="62" rx="6"/><line x1="296" y1="104" x2="310" y2="104"/>',
   person:'<circle cx="200" cy="120" r="48"/><path d="M100 290 q100 -150 200 0"/>',
-  event:'<rect x="90" y="60" width="220" height="180"/><line x1="90" y1="105" x2="310" y2="105"/><line x1="140" y1="45" x2="140" y2="75"/><line x1="260" y1="45" x2="260" y2="75"/><circle class="f" cx="200" cy="172" r="22"/>',
-  coach:'<circle cx="160" cy="110" r="40"/><path d="M80 280 q80 -130 160 0"/><ellipse cx="290" cy="120" rx="34" ry="44" transform="rotate(25 290 120)"/><line x1="272" y1="160" x2="252" y2="215" stroke-width="8"/>'
+  event:'<rect x="90" y="60" width="220" height="180"/><line x1="90" y1="105" x2="310" y2="105"/><line x1="140" y1="45" x2="140" y2="75"/><line x1="260" y1="45" x2="260" y2="75"/><circle class="f" cx="200" cy="172" r="22"/>'
 };
 function ph(kind,tone,label,extra){
   return '<div class="ph t-'+tone+(extra?' '+extra:'')+'" role="img" aria-label="'+esc(label)+'"><svg viewBox="0 0 400 300" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+ART[kind]+'<\/svg><span class="ph-tag">Photo placeholder</span></div>';
@@ -1807,7 +1805,7 @@ function vProgEvents(){
     [['Junior Tennis Clinic','Ages 7–15 · Sat 8 AM'],['Pickleball 101','Beginners · Tue & Thu 6 PM'],['Adult Tennis Drills','Intermediate · Sun 7 AM']].map((p,i)=>'<article class="badge court-card rv"><div class="in">'+ph(i===1?'pickle':'tennis',['lav','lime','dark'][i],p[0])+'<div class="body"><h3>'+p[0]+'</h3><p class="lime" style="font-size:.88rem;font-weight:600">'+p[1]+'</p><p class="muted" style="font-size:.9rem">'+L[i]+'</p><a href="#contact" class="btn btn-ghost btn-sm">Ask about this program</a></div></div></article>').join('')+'</div>'+
   '<div class="sec-head" id="pe-events" style="margin-top:64px"><div class="stack"><p class="eyebrow">Events</p><h2>What\'s on</h2><p class="muted" style="max-width:60ch">'+L[5]+'</p></div></div><div class="stack">'+ev.map((e,i)=>{const d=addDays(e[1]);return '<article class="card rv" style="display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:18px"><div style="background:'+(i%2?'var(--lav)':'var(--lime)')+';color:var(--on-accent);padding:12px 16px;text-align:center;min-width:84px" class="clip"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase">'+d.toLocaleDateString('en-PH',{month:'short'})+'</div><div style="font-family:var(--display);font-size:1.6rem;line-height:1">'+d.getDate()+'</div></div><div style="min-width:0"><h3>'+e[0]+'</h3><p class="muted" style="font-size:.9rem;margin-top:6px">'+L[i]+'</p></div><a href="#contact" class="btn btn-ghost btn-sm">Join</a></article>';}).join('')+'</div>'+
   '<div class="sec-head" id="pe-coaches" style="margin-top:64px"><div class="stack"><p class="eyebrow">Coaches</p><h2>Our coaches</h2></div></div><div class="g3">'+
-    (PHASE===2?((S.coaches||[]).filter(c=>c.active).map((c,i)=>'<div class="person rv">'+ph('coach',['dark','dark2','lav'][i%3],c.name)+'<h3>'+esc(c.name)+'</h3><p class="muted" style="font-size:.9rem">'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+(c.bio?' · '+esc(c.bio):'')+' · '+peso(c.rate)+' / hr</p><p style="font-size:.84rem;margin-top:4px">'+esc(schedText(c))+'</p><button class="btn btn-lime btn-sm" style="margin-top:10px" data-act="coach-book" data-id="'+c.id+'">Book a session</button></div>').join('')||'<p class="muted">Coaching sessions at '+esc(branch().name)+' are coming soon.</p>'):['Coach Lorem','Coach Ipsum','Coach Dolor'].map((n,i)=>'<div class="person rv">'+ph('coach',['dark','dark2','lav'][i],n)+'<h3>'+n+'</h3><p class="muted" style="font-size:.9rem">'+['Tennis · 10 yrs','Pickleball · 6 yrs','Tennis & Pickleball · 8 yrs'][i]+'</p></div>').join(''))+'</div></section>';
+    (PHASE===2?((S.coaches||[]).filter(c=>c.active).map((c,i)=>'<div class="person rv"><h3>'+esc(c.name)+'</h3><p class="muted" style="font-size:.9rem">'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+(c.bio?' · '+esc(c.bio):'')+' · '+peso(c.rate)+' / hr</p><p style="font-size:.84rem;margin-top:4px">'+esc(schedText(c))+'</p><button class="btn btn-lime btn-sm" style="margin-top:10px" data-act="coach-book" data-id="'+c.id+'">Book a session</button></div>').join('')||'<p class="muted">Coaching sessions at '+esc(branch().name)+' are coming soon.</p>'):['Coach Lorem','Coach Ipsum','Coach Dolor'].map((n,i)=>'<div class="person rv"><h3>'+n+'</h3><p class="muted" style="font-size:.9rem">'+['Tennis · 10 yrs','Pickleball · 6 yrs','Tennis & Pickleball · 8 yrs'][i]+'</p></div>').join(''))+'</div></section>';
 }
 /* FAQ lives on the Contact page (v4.60); #faq opens Contact at this section */
 function faqSection(){
@@ -2267,7 +2265,7 @@ function seedCoaches(s){
 function coachCards(){
   const list=(S.coaches||[]).filter(c=>c.active);
   if(!list.length)return '<div class="empty"><p>No coaches are taking bookings at '+esc(branch().name)+' yet.</p><a href="#contact" class="btn btn-ghost btn-sm">Ask us about coaching</a></div>';
-  return '<div class="coach-list">'+list.map((c,i)=>'<button type="button" class="pick coach-pick'+(W.coach===c.id?' sel':'')+'" data-act="pick-coach" data-id="'+c.id+'" aria-pressed="'+(W.coach===c.id)+'">'+ph('coach',['dark','dark2','lav'][i%3],c.name)+'<span class="b"><b>'+esc(c.name)+'</b><small>'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+' · '+peso(c.rate)+' / hr coach fee</small><small>'+esc(schedText(c))+'</small>'+((c.off||[]).filter(o=>o.to>=today()).map(o=>'<small class="coach-off">Away '+fmtDate(o.from)+(o.to!==o.from?' – '+fmtDate(o.to):'')+'</small>').join(''))+'</span></button>').join('')+'</div>';
+  return '<div class="coach-list">'+list.map((c,i)=>'<button type="button" class="pick coach-pick'+(W.coach===c.id?' sel':'')+'" data-act="pick-coach" data-id="'+c.id+'" aria-pressed="'+(W.coach===c.id)+'"><span class="b"><b>'+esc(c.name)+'</b><small>'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+' · '+peso(c.rate)+' / hr coach fee</small><small>'+esc(schedText(c))+'</small>'+((c.off||[]).filter(o=>o.to>=today()).map(o=>'<small class="coach-off">Away '+fmtDate(o.from)+(o.to!==o.from?' – '+fmtDate(o.to):'')+'</small>').join(''))+'</span></button>').join('')+'</div>';
 }
 /* admin: Management → Coaching */
 function vCoaching(){

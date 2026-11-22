@@ -4,8 +4,12 @@ import { CourtCard } from "@/components/site/CourtCard";
 import { SecHead } from "@/components/ui";
 import { getCourts } from "@/lib/catalog";
 import { L, SITE } from "@/lib/config";
-import { addDaysKey, maxBookKey, todayKey } from "@/lib/time";
+import { maxBookKey, todayKey } from "@/lib/time";
 import { GALLERY } from "@/lib/gallery";
+import HeroIntro from "@/components/site/HeroIntro";
+import SectionReveal from "@/components/site/SectionReveal";
+import HeroDatePicker from "@/components/site/HeroDatePicker";
+import HeroSport from "@/components/site/HeroSport";
 
 export const dynamic = "force-dynamic";
 
@@ -22,30 +26,28 @@ export default async function Home() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <HeroIntro />
+      <SectionReveal />
       <div className="hero-band">
         <section className="hero wrap">
           <div>
-            <p className="eyebrow">Tennis · Pickleball · Quezon City</p>
             <h1 style={{ marginTop: 14 }}>
               <span className="ln">It all begins with a ball.</span>
               <span className="ln l">Life’s a court.</span>
-              <span className="ln">Play it.</span>
+              <span className="ln shine">Play it.</span>
             </h1>
-            <p className="lead">{L[0]}</p>
-            <div className="row hero-cta">
-              <Link href="/book" className="btn btn-lime">Book a Court</Link>
-              <Link href="/courts" className="btn btn-ghost">See the Courts</Link>
-            </div>
-            {/* plain GET form: works without JavaScript */}
-            <form className="quick" action="/book" method="get">
-              <label className="f"><span>Court</span>
-                <select className="inp" name="court">{courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-              </label>
-              <label className="f"><span>Date</span>
-                <input className="inp" type="date" name="date" min={t0} max={maxBookKey()} defaultValue={addDaysKey(t0, 1)} />
-              </label>
-              <button className="btn btn-lav" type="submit">See open times</button>
+            <p className="lead">Tennis and pickleball courts in Quezon City. Book in under a minute.</p>
+            {/* search bar (v5.29): sport + date → the Book page. Plain GET form, so it works without JavaScript */}
+            <form className="quick" action="/book" method="get" aria-label="Check court availability">
+              <HeroSport />
+              <HeroDatePicker today={t0} max={maxBookKey()} />
+              <button className="btn btn-lime no-edge" type="submit">Check availability <Arrow /></button>
             </form>
+            <ul className="hero-facts">
+              <li><Icon name="pin" />Quezon City</li>
+              <li><Icon name="clock" />Open 7 AM daily</li>
+              <li><Icon name="box" />Rackets and balls for rent</li>
+            </ul>
           </div>
         </section>
       </div>
@@ -97,7 +99,7 @@ export default async function Home() {
       <section className="wrap" style={{ paddingBottom: 40 }}>
         <div className="cta-band dk">
           <div className="stack" style={{ gap: 10 }}><h2>Ready to play?</h2><p>{L[4]}</p></div>
-          <Link href="/book" className="btn btn-lime">Book a Court</Link>
+          <Link href="/book" className="btn btn-lime no-edge">Book a Court</Link>
         </div>
       </section>
     </>

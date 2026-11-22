@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Ph, type Tone } from "@/components/art";
+import PeTabs from "@/components/site/PeTabs";
 import { PageTop, SecHead } from "@/components/ui";
 import { L } from "@/lib/config";
 import { addDaysKey, parseKey, todayKey } from "@/lib/time";
@@ -14,18 +15,14 @@ export const revalidate = 3600; // event dates are relative to today
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/* Programs & Events (merged page, spec §2 v4.52): Programs, Upcoming events, Coaches with jump buttons */
+/* Programs & Events (merged page, spec §2 v4.52): Programs, Upcoming events, Coaches with sticky jump tabs (PeTabs, v5.58) */
 export default function ProgramsPage() {
   const events: [string, number][] = [["Pickleball Social Night", 5], ["Lorem Ipsum Open (Tennis)", 12], ["Doubles Mixer", 19], ["Junior Rally Day", 26]];
   return (
     <>
       <PageTop eyebrow="Programs & Events" title="Train, play, compete" lead={L[4]} />
       <section className="sec wrap" style={{ paddingTop: 28 }}>
-        <nav className="chips" style={{ marginBottom: 28 }} aria-label="On this page">
-          <a className="chip" href="#pe-programs">Programs</a>
-          <a className="chip" href="#pe-events">Upcoming events</a>
-          <a className="chip" href="#pe-coaches">Coaches</a>
-        </nav>
+        <PeTabs />
         <SecHead id="pe-programs" eyebrow="Programs" title="Train with us" />
         <div className="g3">
           {[["Junior Tennis Clinic", "Ages 7–15 · Sat 8 AM"], ["Pickleball 101", "Beginners · Tue & Thu 6 PM"], ["Adult Tennis Drills", "Intermediate · Sun 7 AM"]].map(([t, s], i) => (
@@ -64,7 +61,6 @@ export default function ProgramsPage() {
         <div className="g3">
           {["Coach Lorem", "Coach Ipsum", "Coach Dolor"].map((n, i) => (
             <div className="person" key={n}>
-              <Ph kind="coach" tone={(["dark", "dark2", "lav"] as Tone[])[i]} label={n} />
               <h3>{n}</h3>
               <p className="muted" style={{ fontSize: ".9rem" }}>{["Tennis · 10 yrs", "Pickleball · 6 yrs", "Tennis & Pickleball · 8 yrs"][i]}</p>
             </div>

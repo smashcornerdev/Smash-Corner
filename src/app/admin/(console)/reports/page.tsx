@@ -1,16 +1,22 @@
+import { Fragment } from "react";
 import Link from "next/link";
-import { listBookings, type BookingRow } from "@/lib/adminData";
+import BarChart from "@/components/admin/BarChart";
+import { CountUp, DigitRoll } from "@/components/admin/KpiValue";
+import ReportFilters from "@/components/admin/ReportFilters";
+import { listAllBookingsInRange, type BookingRow } from "@/lib/adminData";
 import { requireAdmin } from "@/lib/auth";
 import { getClosures } from "@/lib/availability";
 import { getCourts } from "@/lib/catalog";
-import { closedHoursIn } from "@/lib/closures";
+import { metrics } from "../../../../../supabase/functions/_shared/report"; // shared with the monthly-report email
 import { HOURS } from "@/lib/config";
+import { Pill } from "@/components/ui";
 import { peso } from "@/lib/format";
-import { addDaysKey, dayDiff, fmtDate, fmtH, todayKey } from "@/lib/time";
-import type { Closure, Court } from "@/lib/types";
+import { addDaysKey, dayDiff, fmtDate, fmtDateLong, fmtH, fmtRange, tidyRange, todayKey } from "@/lib/time";
+import type { Court } from "@/lib/types";
 
 /* Reports (super-admins, spec §19). Bookings count by play date; revenue includes court fees and equipment. */
 const RANGES: Record<string, string> = { l7: "Last 7 days", l30: "Last 30 days", mtd: "Month to date", n14: "Next 14 days" };
+const MAX_CUSTOM_DAYS = 366; // the chart draws one bar per day
 function rangeOf(k: string): [string, string] {
   const t = todayKey();
   if (k === "l7") return [addDaysKey(t, -6), t];
@@ -18,37 +24,26 @@ function rangeOf(k: string): [string, string] {
   if (k === "n14") return [t, addDaysKey(t, 13)];
   return [addDaysKey(t, -29), t];
 }
-function metrics(all: BookingRow[], closures: Closure[], from: string, to: string, cid: string, nCourts: number) {
-  const L = all.filter((b) => b.date >= from && b.date <= to && (cid === "all" || b.court_id === cid));
-  const appr = L.filter((b) => b.status === "approved"), canc = L.filter((b) => b.status === "cancelled" && b.refund_pct != null);
-  const pend = L.filter((b) => ["pending", "awaiting", "verify"].includes(b.status));
-  const paid = appr.length + canc.length;
-  const gross = [...appr, ...canc].reduce((x, b) => x + b.total, 0);
-  const refunds = canc.reduce((x, b) => x + Math.round((b.total * (b.refund_pct ?? 0)) / 100), 0);
-  const net = gross - refunds;
-  const days = dayDiff(from, to) + 1;
-  const avail = Math.max(0, days * HOURS.length * (cid === "all" ? nCourts : 1) - closedHoursIn(closures, from, to, cid));
-  const occ = appr.reduce((x, b) => x + b.hours.length, 0);
-  return { L, appr, gross, net, refunds, bookings: paid + pend.length, cancelled: canc.length, util: avail ? occ / avail : 0, cancelRate: paid ? canc.length / paid : 0, abv: paid ? gross / paid : 0, revpach: avail ? net / avail : 0, revpoch: occ ? net / occ : 0, occ, avail };
-}
 const pct = (v: number) => (v * 100).toFixed(1) + "%";
 
-export default async function Reports({ searchParams }: { searchParams: Promise<{ r?: string; c?: string }> }) {
+export default async function Reports({ searchParams }: { searchParams: Promise<{ r?: string; c?: string; from?: string; to?: string }> }) {
   await requireAdmin({ superOnly: true });
   const sp = await searchParams;
-  const rk = sp.r && sp.r in RANGES ? sp.r : "l30";
-  const [from, to] = rangeOf(rk);
+  const custom = sp.r === "custom" ? tidyRange(sp.from, sp.to, MAX_CUSTOM_DAYS) : null; // missing or impossible dates fall back to the default range
+  const rk = custom ? "custom" : sp.r && sp.r in RANGES ? sp.r : "l30";
+  const [from, to] = custom ? [custom.from, custom.to] : rangeOf(rk);
   const len = dayDiff(from, to) + 1;
   const pFrom = addDaysKey(from, -len), pTo = addDaysKey(from, -1);
-  const [courts, closures, all] = await Promise.all([getCourts(), getClosures(), listBookings({ from: pFrom, to })]);
+  const [courts, closures, all] = await Promise.all([getCourts(), getClosures(), listAllBookingsInRange(pFrom, to)]);
   const cid = courts.some((c) => c.id === sp.c) ? sp.c! : "all";
   const cur = metrics(all, closures, from, to, cid, courts.length), prev = metrics(all, closures, pFrom, pTo, cid, courts.length);
-  const kpi = (label: string, v: number, p: number, fmt: (n: number) => string, goodUp = true) => {
+  // money and percentages count up (countUp); the bookings count rolls like an odometer (digitRoll)
+  const kpi = (label: string, v: number, p: number, kind: "peso" | "pct" | "count", goodUp = true) => {
     const d = p ? (v - p) / p : 0, up = v >= p;
     return (
       <div className="kpi" key={label}>
-        <small>{label}</small><b>{fmt(v)}</b>
-        <span className="delta">{p || v ? <span className={up === goodUp ? "good" : "bad"}>{up ? "▲" : "▼"} {p ? pct(Math.abs(d)) : "new"}</span> : "—"} vs previous {len} days</span>
+        <small>{label}</small><b>{kind === "count" ? <DigitRoll value={v} /> : <CountUp value={kind === "peso" ? Math.round(v) : v} kind={kind} />}</b>
+        <span className="delta">{p || v ? <span className={up === goodUp ? "good" : "bad"}>{up ? "▲" : "▼"} {p ? pct(Math.abs(d)) : "new"}</span> : "—"} vs previous {len === 1 ? "day" : `${len} days`}</span>
       </div>
     );
   };
@@ -56,7 +51,39 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
   const daysList = Array.from({ length: len }, (_, i) => addDaysKey(from, i));
   const byDay = daysList.map((d) => metrics(all, closures, d, d, cid, courts.length));
   const maxNet = Math.max(1, ...byDay.map((m) => m.net));
-  const W = 640, H = 200, bw = W / len;
+  const cname = (id: string) => courts.find((c) => c.id === id)?.name ?? id;
+  // what a clicked bar opens: the day's figures, then every booking that day (earliest first), each linking to its page
+  const dayDetail = (day: string, m: ReturnType<typeof metrics<BookingRow>>) => {
+    const list = [...m.L].sort((a, b) => a.hours[0] - b.hours[0] || a.court_id.localeCompare(b.court_id));
+    return (
+      <Fragment key={day}>
+        <dl className="bar-stats">
+          <div><dt>Net revenue</dt><dd>{peso(m.net)}</dd></div>
+          <div><dt>Total revenue</dt><dd>{peso(m.gross)}</dd></div>
+          <div><dt>Refunds</dt><dd>{peso(m.refunds)}</dd></div>
+          <div><dt>Bookings</dt><dd>{m.bookings}</dd></div>
+          <div><dt>Court-hours used</dt><dd>{m.occ} of {m.avail}</dd></div>
+          <div><dt>Utilization</dt><dd>{pct(m.util)}</dd></div>
+        </dl>
+        {list.length ? (
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Ref</th><th>Court</th><th>Time</th><th>Customer</th><th className="num">Total</th><th>Status</th></tr></thead>
+              <tbody>{list.map((b) => (
+                <tr key={b.id}>
+                  <td><Link href={`/admin/bookings/view/${b.id}`}><b>{b.ref}</b></Link></td>
+                  <td>{cname(b.court_id)}</td><td style={{ whiteSpace: "nowrap" }}>{fmtRange(b.hours)}</td>
+                  <td>{b.name}<br /><small className="muted">{b.email}</small></td>
+                  <td className="num">{peso(b.total)}{b.refund_pct ? <><br /><small className="muted">{b.refund_pct}% refunded</small></> : null}</td>
+                  <td><Pill s={b.status} /></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <p className="muted bar-empty" style={{ fontSize: ".86rem" }}>No bookings on this day.</p>}
+      </Fragment>
+    );
+  };
   const perCourt = (c: Court) => metrics(all, closures, from, to, c.id, courts.length);
   const hours = HOURS.map((h) => {
     const occ = cur.appr.filter((b) => b.hours.includes(h)).length;
@@ -64,41 +91,36 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
     return { h, v: av ? occ / av : 0 };
   });
   const peak = hours.reduce((a, b) => (b.v > a.v ? b : a), hours[0]);
-  const q = (o: Record<string, string>) => "?" + new URLSearchParams({ r: rk, c: cid, ...o }).toString();
   return (
-    <>
-      <div className="rep-filters">
-        <div className="chips">{Object.entries(RANGES).map(([k, l]) => <Link key={k} className={"chip" + (k === rk ? " on" : "")} href={q({ r: k })}>{l}</Link>)}</div>
-        <div className="chips">{[{ id: "all", name: "All courts" }, ...courts].map((c) => <Link key={c.id} className={"chip" + (c.id === cid ? " on" : "")} href={q({ c: c.id })}>{c.name}</Link>)}</div>
-      </div>
+    <ReportFilters ranges={Object.entries(RANGES).map(([k, label]) => ({ k, label }))} courts={[{ id: "all", name: "All courts" }, ...courts.map((c) => ({ id: c.id, name: c.name }))]} range={rk} court={cid} from={from} to={to}>
+      {custom?.capped ? <div className="banner">A custom range can cover up to {MAX_CUSTOM_DAYS} days, so the end date was moved to {fmtDate(to)}.</div> : null}
       <p className="muted" style={{ fontSize: ".86rem" }}>{fmtDate(from)} – {fmtDate(to)} · by play date · {cur.avail} available court-hours (closures subtracted)</p>
       <div className="kpis">
-        {kpi("Total Revenue", cur.gross, prev.gross, peso)}
-        {kpi("Net Revenue", cur.net, prev.net, peso)}
-        {kpi("Total Bookings", cur.bookings, prev.bookings, String)}
-        {kpi("Court Utilization", cur.util, prev.util, pct)}
-        {kpi("Cancellation Rate", cur.cancelRate, prev.cancelRate, pct, false)}
-        {kpi("Average Booking Value", cur.abv, prev.abv, (n) => peso(Math.round(n)))}
-        {kpi("Revenue / Available Court-Hour", cur.revpach, prev.revpach, (n) => peso(Math.round(n)))}
-        {kpi("Revenue / Occupied Court-Hour", cur.revpoch, prev.revpoch, (n) => peso(Math.round(n)))}
+        {kpi("Total Revenue", cur.gross, prev.gross, "peso")}
+        {kpi("Net Revenue", cur.net, prev.net, "peso")}
+        {kpi("Total Bookings", cur.bookings, prev.bookings, "count")}
+        {kpi("Court Utilization", cur.util, prev.util, "pct")}
+        {kpi("Cancellation Rate", cur.cancelRate, prev.cancelRate, "pct", false)}
+        {kpi("Average Booking Value", cur.abv, prev.abv, "peso")}
+        {kpi("Revenue / Available Court-Hour", cur.revpach, prev.revpach, "peso")}
+        {kpi("Revenue / Occupied Court-Hour", cur.revpoch, prev.revpoch, "peso")}
       </div>
       <div className="chart-card">
         <h3>Net revenue by day</h3>
-        <div className="chart-scroll">
-          <svg viewBox={`0 0 ${W} ${H + 24}`} role="img" aria-label="Net revenue by day">
-            <line className="grid base" x1={0} x2={W} y1={H} y2={H} />
-            {byDay.map((m, i) => {
-              const h = (m.net / maxNet) * (H - 10);
-              return (
-                <g className="col" key={daysList[i]}>
-                  <title>{`${fmtDate(daysList[i])}: net ${peso(m.net)}, total ${peso(m.gross)}, refunds ${peso(m.refunds)}, ${m.bookings} bookings, ${m.occ} court-hours`}</title>
-                  <rect className="bar" x={i * bw + bw * 0.15} width={bw * 0.7} y={H - h} height={h} />
-                  {len <= 14 || i % Math.ceil(len / 10) === 0 ? <text x={i * bw + bw / 2} y={H + 16} textAnchor="middle">{daysList[i].slice(5).replace("-", "/")}</text> : null}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
+        <BarChart label="Net revenue by day" bars={byDay.map((m, i) => ({
+          key: daysList[i],
+          pct: Math.round((Math.max(0, m.net) / maxNet) * 950) / 10, // tallest bar is 95% of the chart height
+          tip: `${fmtDate(daysList[i])}: net ${peso(m.net)}, total ${peso(m.gross)}, refunds ${peso(m.refunds)}, ${m.bookings} bookings, ${m.occ} court-hours`,
+          title: fmtDateLong(daysList[i]),
+          detail: dayDetail(daysList[i], m),
+        }))} axis={
+          /* date labels sit under the bars as text so they keep a fixed text size however wide the chart is drawn; the end labels are pinned inside the edges */
+          <div className="chart-x" aria-hidden="true" key="axis">
+            {daysList.map((d, i) => (len <= 14 || i % Math.ceil(len / 10) === 0 ? (
+              <span key={d} style={{ left: `${((i + 0.5) / len) * 100}%` }} className={i === 0 ? "first" : i === len - 1 ? "last" : undefined}>{d.slice(5).replace("-", "/")}</span>
+            ) : null))}
+          </div>
+        } />
       </div>
       <div className="g2" style={{ alignItems: "start" }}>
         <div className="chart-card">
@@ -107,7 +129,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
         </div>
         <div className="chart-card">
           <h3>Busiest hours</h3>
-          <p className="muted" style={{ fontSize: ".84rem" }}>Peak: {fmtH(peak.h)} ({pct(peak.v)})</p>
+          <p className="muted" style={{ fontSize: ".84rem" }}>{peak.v ? `Peak: ${fmtH(peak.h)} (${pct(peak.v)})` : "No confirmed bookings in this range."}</p>
           <div className="hbars">{hours.map((x) => <div className="hrow" key={x.h}><span>{fmtH(x.h)}</span><div className="track"><div className="fill" style={{ width: pct(x.v) }} /></div><span className="hv">{pct(x.v)}</span></div>)}</div>
         </div>
       </div>
@@ -120,6 +142,6 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
           </tbody>
         </table>
       </div>
-    </>
+    </ReportFilters>
   );
 }

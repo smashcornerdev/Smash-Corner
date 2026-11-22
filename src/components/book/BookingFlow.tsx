@@ -1,22 +1,27 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Arrow, Ph, TONES, courtArt } from "@/components/art";
 import { addToCartAction, joinWaitlistAction } from "@/app/actions/booking";
 import { CLOSE_HOUR, HOURS } from "@/lib/config";
 import { peso, validEmail, validPhone } from "@/lib/format";
-import { daysInMonth, fmtDate, fmtDateLong, fmtH, fmtMonth, fmtRange, fmtTs, toRanges, weekday } from "@/lib/time";
+import { addDaysKey, daysInMonth, fmtDate, fmtDateLong, fmtH, fmtMonth, fmtRange, fmtTs, toRanges, weekday } from "@/lib/time";
 import type { Court, EquipmentItem } from "@/lib/types";
+import { type BtnLook, btnDim, btnIn, btnLit, btnLook, hintSwap, listReveal, slotIn, slotOut, stepSwap } from "@/lib/gsap/stepSwap";
+import SummaryLines from "@/components/book/SummaryLines";
+import { itemFee, unitLabel } from "@/lib/pricing";
 
 type SlotState = "past" | "closed" | "class" | "taken" | "reserved" | "cart" | "open";
 type Day = { date: string; open: number; closed: boolean; bookable: boolean };
+/** court → date → hour → state for the whole bookable window (from the page, or /api/availability?window=1) */
+export type Avail = Record<string, Record<string, Record<number, SlotState>>>;
 export type Claim = { token: string; courtId: string; date: string; hour: number; name: string; email: string; phone: string; players: number; expires: string };
 
 const LAST_KEY = "sc-last-details";
 const loadLast = () => { try { return JSON.parse(localStorage.getItem(LAST_KEY) || "{}"); } catch { return {}; } };
 
 /* Court booking: Court → Date → Time → Details & Equipment → cart (spec §6) */
-export default function BookingFlow(props: { courts: Court[]; items: EquipmentItem[]; today: string; max: string; initCourt?: string; initDate?: string; claim?: Claim }) {
+export default function BookingFlow(props: { courts: Court[]; items: EquipmentItem[]; today: string; max: string; avail?: Avail; initCourt?: string; initDate?: string; claim?: Claim }) {
   const { courts, items, today, max, claim } = props;
   const router = useRouter();
   const [step, setStep] = useState(claim ? 4 : props.initCourt ? (props.initDate ? 3 : 2) : 1);
@@ -27,9 +32,8 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
   const [pStart, setPStart] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [hoverEnd, setHoverEnd] = useState<number | null>(null);
-  const [days, setDays] = useState<Day[] | null>(null);
-  const [states, setStates] = useState<Record<number, SlotState> | null>(null);
-  const [free, setFree] = useState<Record<string, number>>({});
+  const [avail, setAvail] = useState<Avail | null>(props.avail ?? null);
+  const [free, setFree] = useState<Record<string, number> | null>(null); // null while loading
   const [rent, setRent] = useState<"yes" | "no" | null>(null);
   const [equip, setEquip] = useState<Record<string, number>>({});
   const [f, setF] = useState({ name: claim?.name ?? "", phone: claim?.phone ?? "", email: claim?.email ?? "", players: String(claim?.players ?? "") });
@@ -46,23 +50,33 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
     setF((x) => ({ ...x, name: last.name ?? "", phone: last.phone ?? "", email: last.email ?? "" }));
   }, [claim]);
 
-  const loadMonth = useCallback(async () => {
-    if (!courtId) return;
-    setDays(null);
-    const r = await fetch(`/api/availability?court=${courtId}&month=${month}${claimQ}`, { cache: "no-store" });
-    if (r.ok) setDays((await r.json()).days);
-  }, [courtId, month, claimQ]);
-  const loadDay = useCallback(async () => {
-    if (!courtId || !date) return;
-    setStates(null);
-    const r = await fetch(`/api/availability?court=${courtId}&date=${date}${claimQ}`, { cache: "no-store" });
-    if (r.ok) setStates((await r.json()).hours);
-  }, [courtId, date, claimQ]);
-  useEffect(() => { if (step === 2) loadMonth(); }, [step, loadMonth]);
-  useEffect(() => { if (step === 3) loadDay(); }, [step, loadDay]);
+  /* Date & time data (spec §6): sent with the page when this is the tab the Book page opens on, otherwise fetched once
+     when the tab is first shown. Entering the Date or Time step refreshes it quietly in the background (no loading state). */
+  const loadedAt = useRef(props.avail ? Date.now() : 0);
+  const refresh = useCallback(async (force = true) => {
+    if (!force && Date.now() - loadedAt.current < 30_000) return;
+    loadedAt.current = Date.now();
+    const r = await fetch(`/api/availability?window=1${claimQ}`, { cache: "no-store" }).catch(() => null);
+    if (r?.ok) setAvail((await r.json()).avail);
+  }, [claimQ]);
+  useEffect(() => { if (step === 2 || step === 3 || !loadedAt.current) refresh(false); }, [step, refresh]);
+  const states = (avail && courtId && date ? avail[courtId]?.[date] : null) ?? null;
+  const days = useMemo<Day[] | null>(() => {
+    const byDate = avail && courtId ? avail[courtId] : null;
+    if (!byDate) return null;
+    const out: Day[] = [];
+    for (let d = `${month}-01`; d.slice(0, 7) === month; d = addDaysKey(d, 1)) {
+      const st = byDate[d];
+      if (!st) { out.push({ date: d, open: 0, closed: false, bookable: false }); continue; }
+      const v = HOURS.map((h) => st[h]);
+      out.push({ date: d, open: v.filter((x) => x === "open").length, closed: v.every((x) => x === "closed" || x === "past"), bookable: true });
+    }
+    return out;
+  }, [avail, courtId, month]);
   useEffect(() => {
     if (step !== 4 || !date || !slots.length) return;
-    fetch(`/api/equipment?date=${date}&hours=${slots.join(",")}`, { cache: "no-store" }).then((r) => r.json()).then((d) => setFree(d.free ?? {})).catch(() => {});
+    setFree(null);
+    fetch(`/api/equipment?date=${date}&hours=${slots.join(",")}`, { cache: "no-store" }).then((r) => r.json()).then((d) => setFree(d.free ?? {})).catch(() => setFree({}));
   }, [step, date, slots]);
   useEffect(() => { if (court && !f.players) setF((x) => ({ ...x, players: String(court.min_players) })); }, [court, f.players]);
 
@@ -70,11 +84,13 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
   const eqForCourt = court ? items.filter((i) => i.type === court.type) : [];
   const eqUsed = rent === "yes" ? equip : {};
   const total = court && slots.length
-    ? court.rate * slots.length + eqForCourt.reduce((a, it) => a + it.rate * (eqUsed[it.id] || 0) * slots.length, 0) : 0;
+    ? court.rate * slots.length + eqForCourt.reduce((a, it) => a + itemFee(it, eqUsed[it.id] || 0, slots.length), 0) : 0;
 
+  // a date carried in from the Home search bar (no court yet) is kept for the first court picked, which then goes straight to Time
   const pickCourt = (id: string) => {
-    if (id !== courtId) { setCourtId(id); setDate(null); setSlots([]); setEquip({}); setPStart(null); setAdding(false); setF((x) => ({ ...x, players: "" })); }
-    setStep(2);
+    const keepDate = courtId === null && !!date;
+    if (id !== courtId) { setCourtId(id); if (!keepDate) setDate(null); setSlots([]); setEquip({}); setPStart(null); setAdding(false); setF((x) => ({ ...x, players: "" })); }
+    setStep(keepDate ? 3 : 2);
   };
   const pickDate = (k: string) => {
     if (k !== date) { setDate(k); setSlots([]); setPStart(null); setAdding(false); }
@@ -92,7 +108,7 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
     if (!validPhone(f.phone)) er.phone = "Enter a valid mobile number, e.g. 0917 123 4567.";
     if (!validEmail(f.email.trim())) er.email = "Enter a valid email address.";
     if (!(pl >= court.min_players && pl <= court.max_players)) er.players = `Players must be between ${court.min_players} and ${court.max_players}.`;
-    if (!rent) er.rent = "Choose Yes or No.";
+    if (!rent && eqForCourt.length) er.rent = "Choose Yes or No.";
     else if (rent === "yes" && !Object.values(equip).some((v) => v > 0)) er.rent = "Add at least one item, or choose No.";
     setErrs(er);
     setFormErr("");
@@ -105,13 +121,32 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
       });
       if (!r.ok) {
         setFormErr(r.error ?? "Something went wrong.");
-        if (r.error?.includes("taken")) { setSlots([]); setStep(3); loadDay(); }
+        if (r.error?.includes("taken")) { setSlots([]); setStep(3); refresh(); }
         return;
       }
       window.dispatchEvent(new Event("cart-changed"));
       router.push("/cart");
     });
   };
+
+  // the equipment list unfolds with its items one by one when Rent equipment? is set to Yes (v5.37)
+  const eqList = useRef<HTMLDivElement>(null);
+  const rentWas = useRef(rent);
+  useLayoutEffect(() => {
+    const was = rentWas.current;
+    rentWas.current = rent;
+    if (rent === "yes" && was !== "yes") return listReveal(eqList.current);
+  }, [rent]);
+
+  // step transition (v5.33): the new step slides in, from the right going forward, from the left going back
+  const stepBox = useRef<HTMLDivElement>(null);
+  const prevStep = useRef(step);
+  useLayoutEffect(() => {
+    if (prevStep.current === step) return;
+    const dir = step > prevStep.current ? 1 : -1;
+    prevStep.current = step;
+    return stepSwap(stepBox.current?.firstElementChild ?? null, dir);
+  }, [step]);
 
   return (
     <>
@@ -126,7 +161,7 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
         })}
       </div>
       <div className="book-grid">
-        <div>
+        <div ref={stepBox}>
           {step === 1 && (
             <div className="panel">
               <h2 style={{ fontSize: "1.3rem" }}>Choose a court</h2>
@@ -157,7 +192,7 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
                   <input className="inp" type="number" min={court.min_players} max={court.max_players} value={f.players} onChange={(e) => setF({ ...f, players: e.target.value })} />
                 </Field>
               </div>
-              <fieldset style={{ border: 0, padding: 0, margin: 0 }} className="stack">
+              {eqForCourt.length ? <fieldset style={{ border: 0, padding: 0, margin: 0 }} className="stack">
                 <legend style={{ fontWeight: 600, marginBottom: 10 }}>Rent equipment?</legend>
                 <div className="seg">
                   <label><input type="radio" name="rent" checked={rent === "yes"} onChange={() => setRent("yes")} /> Yes</label>
@@ -165,12 +200,12 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
                 </div>
                 {errs.rent ? <em className="err">{errs.rent}</em> : null}
                 {rent === "yes" && (
-                  <div className="eq-list">
+                  <div className="eq-list" ref={eqList}>
                     {eqForCourt.map((it) => {
-                      const av = free[it.id] ?? 0, q = Math.min(equip[it.id] || 0, av);
+                      const av = free?.[it.id] ?? 0, q = Math.min(equip[it.id] || 0, av);
                       return (
                         <div className="eq" key={it.id}>
-                          <div><b>{it.name}</b><small>{peso(it.rate)} per item, per hour · {av ? `${av} available for your time` : "Not available for this time"}</small></div>
+                          <div><b>{it.name}</b><small>{peso(it.rate)} per item, {unitLabel(it)} · {!free ? "Checking availability…" : av ? `${av} available for your time` : "Not available for this time"}</small></div>
                           <div className="qty">
                             <button type="button" aria-label={`Fewer ${it.name}`} onClick={() => setEquip({ ...equip, [it.id]: Math.max(0, q - 1) })}>−</button>
                             <output>{q}</output>
@@ -181,10 +216,10 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
                     })}
                   </div>
                 )}
-              </fieldset>
+              </fieldset> : null /* no rental items for this sport (all deleted, v6.05) */}
               {formErr ? <p className="err">{formErr}</p> : null}
               <div className="row">
-                <button className="btn btn-lime" type="submit" disabled={pending}>{pending ? "Adding…" : "Add to cart"}</button>
+                <button className="btn btn-lime no-edge" type="submit" disabled={pending}>{pending ? "Adding…" : "Add to cart"}</button>
                 <button className="btn btn-ghost" type="button" onClick={() => setStep(3)}>Back</button>
               </div>
             </form>
@@ -192,14 +227,15 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
         </div>
         <aside className="summary">
           <h4>Booking summary</h4>
-          <div className="line"><span>Court</span><span>{court?.name ?? "—"}</span></div>
-          <div className="line"><span>Date</span><span>{date ? fmtDate(date) : "—"}</span></div>
-          <div className="line"><span>Time</span><span style={{ textAlign: "right" }}>{slots.length ? fmtRange(slots) : "—"}</span></div>
-          {court && slots.length ? <div className="line"><span>{peso(court.rate)} × {slots.length} hr</span><span className="tabnum">{peso(court.rate * slots.length)}</span></div> : null}
-          {eqForCourt.filter((it) => (eqUsed[it.id] || 0) > 0).map((it) => (
-            <div className="line" key={it.id}><span>{eqUsed[it.id]} × {it.name} × {slots.length} hr</span><span className="tabnum">{peso(it.rate * eqUsed[it.id] * slots.length)}</span></div>
-          ))}
-          <div className="line total"><span>Total</span><span className="tabnum">{peso(total)}</span></div>
+          <SummaryLines lines={[
+            { k: "court", label: "Court", value: court?.name ?? "—" },
+            { k: "date", label: "Date", value: date ? fmtDate(date) : "—" },
+            { k: "time", label: "Time", value: slots.length ? fmtRange(slots) : "—", valueStyle: { textAlign: "right" } },
+            ...(court && slots.length ? [{ k: "rate", label: `${peso(court.rate)} × ${slots.length} hr`, value: peso(court.rate * slots.length), valueCls: "tabnum" }] : []),
+            ...eqForCourt.filter((it) => (eqUsed[it.id] || 0) > 0).map((it) => (
+              { k: "eq-" + it.id, label: `${eqUsed[it.id]} × ${it.name}${it.unit === "session" ? " (per session)" : ` × ${slots.length} hr`}`, value: peso(itemFee(it, eqUsed[it.id], slots.length)), valueCls: "tabnum" })),
+            { k: "total", label: "Total", value: peso(total), cls: "total", valueCls: "tabnum" },
+          ]} />
           <p className="muted" style={{ fontSize: ".78rem" }}>{claim ? "Waitlist claim: your slot is held until " + fmtTs(claim.expires) + "." : "Slots are held for 15 minutes once added to your cart."}</p>
         </aside>
       </div>
@@ -236,17 +272,18 @@ function DateStep({ court, month, setMonth, days, date, today, max, pickDate }: 
             const d = days?.find((x) => x.date === k);
             const out = k < today || k > max;
             const off = out || !d || d.closed;
-            const lab = !d ? (out ? (k < today ? "" : "Not yet open") : "…") : out ? (k < today ? "" : "Not yet open") : d.closed ? "Closed" : d.open === 0 ? "Full" : `${d.open} open`;
+            // only the date is shown; full / closed days get their own shade, and the status is read out to screen readers (v5.13)
+            const lab = out ? (k < today ? "" : "Not yet open") : !d ? "" : d.closed ? "Closed" : d.open === 0 ? "Full, waitlist available" : "";
             const cls = "cal-day" + (date === k ? " sel" : "") + (k === today ? " today" : "") + (off ? " off" : d!.open === 0 ? " full" : "");
             return (
               <button key={k} className={cls} disabled={off} aria-pressed={date === k} aria-label={`${fmtDateLong(k)}${lab ? ", " + lab : ""}`} onClick={() => pickDate(k)}>
-                <b>{i + 1}</b><span className="av">{lab}</span>
+                <b>{i + 1}</b>
               </button>
             );
           })}
         </div>
       </div>
-      <div className="legend"><span><i className="s" />Selected</span><span><i style={{ background: "var(--surface)", boxShadow: "inset 0 0 0 2px var(--accent-2)" }} />Today</span><span><i className="t" />Full (waitlist available)</span></div>
+      <div className="legend"><span><i className="s" />Selected</span><span><i style={{ background: "var(--surface)", boxShadow: "inset 0 0 0 2px var(--accent-2)" }} />Today</span><span><i className="f" />Full (waitlist available)</span><span><i className="t" />Closed / not bookable</span></div>
       <p className="muted" style={{ fontSize: ".86rem" }}>You can book up to 1 month ahead (until {fmtDateLong(max)}). Full days can still be opened to join the waitlist.</p>
     </div>
   );
@@ -267,6 +304,45 @@ function TimeStep(p: {
   const anyFree = HOURS.some(isFree);
   const ending = picking && s !== null;
   const blocks = toRanges(slots);
+  // a new or changed "Time slot N" card animates in (v5.33); the ones already there when the step opens don't
+  const blocksBox = useRef<HTMLDivElement>(null);
+  // the buttons under the grid animate as they change (v5.38/v5.39), not when the step opens: Continue and "+ Add time slot"
+  // light up when they become clickable and fade back to shaded when they stop being clickable; Cancel / Add slide in when
+  // one replaces the other. "+ Add time slot" is always shown, shaded until there's a time slot (or when nothing is free).
+  const canGo = slots.length > 0 && s === null;
+  const extraBtn = picking && slots.length ? "cancel" : "add";
+  const addOn = !picking && anyFree;
+  const goRef = useRef<HTMLButtonElement>(null), extraRef = useRef<HTMLButtonElement>(null);
+  const btnsWas = useRef<{ canGo: boolean; extraBtn: string; addOn: boolean; go: BtnLook | null; extra: BtnLook | null } | null>(null);
+  useLayoutEffect(() => {
+    const was = btnsWas.current, go = goRef.current, extra = extraRef.current;
+    if (was) {
+      if (canGo !== was.canGo) { if (canGo) btnLit(go); else btnDim(go, was.go); }
+      if (extraBtn !== was.extraBtn) btnIn(extra);
+      else if (extraBtn === "add" && addOn !== was.addOn) { if (addOn) btnLit(extra); else btnDim(extra, was.extra); }
+    }
+    btnsWas.current = { canGo, extraBtn, addOn, go: btnLook(go), extra: btnLook(extra) };
+  }, [canGo, extraBtn, addOn]);
+  // the hint card's content animates each time it changes (v5.36), not when the step opens
+  const hintKey = !picking ? "added" : !anyFree ? "full" : s === null ? "start" : "end-" + s;
+  const hintBox = useRef<HTMLParagraphElement>(null);
+  const hintWas = useRef<{ key: string; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const was = hintWas.current, el = hintBox.current;
+    if (was && was.key !== hintKey) hintSwap(el, was.h);
+    hintWas.current = { key: hintKey, h: el?.offsetHeight ?? 0 };
+  }, [hintKey]);
+  const slotsNow = useRef(slots); // the removal finishes after its animation, so it reads the latest slots (two quick removals)
+  useEffect(() => { slotsNow.current = slots; }, [slots]);
+  const seenBlocks = useRef<Set<string> | null>(null);
+  const blockKeys = blocks.map(([a, b]) => `${a}-${b}`).join(",");
+  useLayoutEffect(() => {
+    const keys = blockKeys ? blockKeys.split(",") : [];
+    const prev = seenBlocks.current;
+    seenBlocks.current = new Set(keys);
+    if (!prev) return;
+    slotIn(Array.from(blocksBox.current?.children ?? []).filter((el) => !prev.has((el as HTMLElement).dataset.k ?? "")));
+  }, [blockKeys]);
 
   if (!states) return <div className="panel"><p className="muted">Loading open times…</p></div>;
 
@@ -286,19 +362,24 @@ function TimeStep(p: {
     <div className="panel">
       <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ fontSize: "1.3rem" }}>Choose time slot</h2><span className="muted" style={{ fontSize: ".88rem" }}>{court.name} · {fmtDate(date)}</span></div>
       {blocks.length ? (
-        <div className="blocks">
+        <div className="blocks" ref={blocksBox}>
           {blocks.map(([a, b], i) => (
-            <div className="block" key={a}>
+            <div className="block" key={a} data-k={`${a}-${b}`}>
               <span className="bn">Time slot {i + 1}</span><b>{fmtH(a)} – {fmtH(b + 1)}</b><span className="muted tabnum">{b - a + 1} hr{b > a ? "s" : ""}</span>
-              <button className="linkbtn" onClick={() => { const n = slots.filter((h) => h < a || h > b); setSlots(n); if (!n.length) setAdding(false); }}>Remove</button>
+              <button className="x block-x" aria-label={`Remove time slot ${i + 1}, ${fmtH(a)} – ${fmtH(b + 1)}`} title="Remove"
+                onClick={(e) => slotOut(e.currentTarget.closest<HTMLElement>(".block"), () => { const n = slotsNow.current.filter((h) => h < a || h > b); setSlots(n); if (!n.length) setAdding(false); })}>
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" /></svg>
+              </button>
             </div>
           ))}
         </div>
       ) : null}
-      {!picking ? <p className="tp-hint">Your time is added. Add another time slot or continue.</p>
-        : !anyFree ? <p className="tp-hint">No more open times on this day. Join the waitlist for a booked hour, or pick another date.</p>
-        : s === null ? <p className="tp-hint"><span className="tp-step">1</span> Click your <b>start time</b>.</p>
-        : <p className="tp-hint"><span className="tp-step">2</span> Start: <b>{fmtH(s)}</b>. Now click your <b>end time</b>. <button className="linkbtn" onClick={() => setPStart(null)}>Change start time</button></p>}
+      <p className="tp-hint" ref={hintBox}><span className="tp-in">
+        {!picking ? "Your time is added. Add another time slot or continue."
+          : !anyFree ? "No more open times on this day. Join the waitlist for a booked hour, or pick another date."
+          : s === null ? <><span className="tp-step">1</span> Click your <b>start time</b>.</>
+          : <><span className="tp-step">2</span> Start: <b>{fmtH(s)}</b>. Now click your <b>end time</b>. <button className="linkbtn" onClick={() => setPStart(null)}>Change start time</button></>}
+      </span></p>
       <div className={"slots" + (ending ? " ending" : "")}>
         {HOURS.map((h) => {
           const v = st(h), mine = slots.includes(h);
@@ -318,9 +399,9 @@ function TimeStep(p: {
       </div>
       <div className="legend"><span><i />Open</span><span><i className="s" />Your time</span><span><i className="t" />Booked (waitlist)</span><span><i className="c" />In your cart</span></div>
       <div className="row">
-        {!picking ? (anyFree ? <button className="btn btn-lav" onClick={() => { setAdding(true); setPStart(null); }}>+ Add time slot</button> : null)
-          : slots.length ? <button className="btn btn-ghost" onClick={() => { setAdding(false); setPStart(null); }}>Cancel</button> : null}
-        <button className="btn btn-lime" disabled={!slots.length || s !== null} onClick={p.onContinue}>Continue</button>
+        {extraBtn === "add" ? <button key="add" ref={extraRef} className="btn btn-lav" disabled={!addOn} onClick={() => { setAdding(true); setPStart(null); }}>+ Add time slot</button>
+          : <button key="cancel" ref={extraRef} className="btn btn-ghost" onClick={() => { setAdding(false); setPStart(null); }}>Cancel</button>}
+        <button ref={goRef} className="btn btn-lime no-edge" disabled={!canGo} onClick={p.onContinue}>Continue</button>
       </div>
     </div>
   );

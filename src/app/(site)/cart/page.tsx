@@ -16,7 +16,7 @@ export default async function CartPage() {
     return (
       <>
         <PageTop eyebrow="Cart" title="Your cart" />
-        <section className="wrap sec" style={{ paddingTop: 20 }}><div className="empty"><p>Your cart is empty.</p><Link href="/book" className="btn btn-lime">Book a court</Link></div></section>
+        <section className="wrap sec" style={{ paddingTop: 20 }}><div className="empty"><p>Your cart is empty.</p><Link href="/book" className="btn btn-lime no-edge">Book a court</Link></div></section>
       </>
     );
   }
@@ -31,7 +31,7 @@ export default async function CartPage() {
             <h4>Order total</h4>
             {lines.map((l) => <div className="line" key={l.id}><span>{l.court}<br /><small>{fmtDate(l.date)}</small></span><span className="tabnum">{peso(l.total)}</span></div>)}
             <div className="line total"><span>Total</span><span className="tabnum">{peso(total)}</span></div>
-            <Link href="/request" className="btn btn-lime">Continue to request</Link>
+            <Link href="/request" className="btn btn-lime no-edge">Continue to request</Link>
             <p className="muted" style={{ fontSize: ".78rem" }}>No payment yet. You pay after an admin approves your request.</p>
           </aside>
         </div>

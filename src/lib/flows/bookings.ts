@@ -1,5 +1,5 @@
 import "server-only";
-import { BRANCH_ID, HOLD_MINUTES, PAY_HOURS, REMIND_HOURS } from "../config";
+import { BRANCH_ID, HOLD_MINUTES, PAY_HOURS } from "../config";
 import { db, dbErrorIs, must } from "../supabase";
 import { courtById, getActiveMethods, getCourts, getEquipment } from "../catalog";
 import { dayStates, equipmentFree } from "../availability";
@@ -9,7 +9,8 @@ import { logAction } from "../log";
 import { uploadReceipt } from "../storage";
 import { bookingViews } from "./views";
 import { releaseHours } from "./waitlist";
-import { addDaysKey, hourTs, todayKey, withinReminder } from "../time";
+import { recordBookings, unrecord } from "../sheets";
+import { withinReminder } from "../time";
 import * as M from "../email/messages";
 import type { Admin, Booking, Equipment, Hold, Order, WaitlistEntry } from "../types";
 
@@ -140,6 +141,7 @@ export async function approve(admin: Admin, bookingId: string): Promise<string> 
   if (soon.length) must(await db().from("bookings").update({ reminded_at: new Date().toISOString() }).in("id", soon));
   for (const x of l) await logAction(admin, paid ? "Payment verified" : "Approved", x.ref, (paid ? "Booking confirmed" : "No payment needed") + ord);
   await M.mailConfirmed(order, views, paid);
+  await recordBookings(l.map((x) => x.id));
   return `${refs} confirmed. Customer emailed.`;
 }
 
@@ -163,6 +165,7 @@ export async function cancel(admin: Admin, bookingId: string, reason: string, re
   await logAction(admin, "Cancelled", b.ref, reason);
   await M.mailCancelled(b, (await bookingViews([b]))[0], reason, refundPct);
   await releaseHours(b.court_id, b.date, b.hours);
+  await unrecord("court", [b.ref]);
   return `${b.ref} cancelled. Customer emailed.`;
 }
 
@@ -200,6 +203,7 @@ export async function edit(admin: Admin, bookingId: string, n: { courtId: string
   await M.mailEdited(nb, (await bookingViews([nb]))[0], { court: courts.find((c) => c.id === old.court_id)?.name ?? old.court_id, date: old.date, hours: old.hours, total: old.total });
   const freed = old.court_id !== nb.court_id || old.date !== nb.date ? old.hours : old.hours.filter((h) => !nb.hours.includes(h));
   await releaseHours(old.court_id, old.date, freed);
+  await recordBookings([b.id]);
   return `${b.ref} updated. Customer emailed.`;
 }
 
@@ -220,43 +224,6 @@ export async function submitPayment(orderId: string, methodId: string, payRef: s
   await M.mailAdminVerify("court", order, views, method.name, payRef.trim());
 }
 
-/* ---------- cron: unpaid requests expire 24 h after approval ---------- */
-export async function expireUnpaidOrders(): Promise<number> {
-  const now = new Date().toISOString();
-  const rows = must(await db().from("bookings").select("order_id, orders!inner(pay_due_at)").eq("branch_id", BRANCH_ID)
-    .eq("status", "awaiting").lte("orders.pay_due_at", now)) as unknown as { order_id: string }[];
-  let n = 0;
-  for (const id of new Set(rows.map((r) => r.order_id))) {
-    const o = (await getOrder(id))!;
-    const l = await orderBookings(o.id, "awaiting");
-    if (!l.length) continue;
-    const reason = "Not paid within 24 hours of approval";
-    must(await db().from("bookings").update({ status: "unpaid", reason }).in("id", l.map((x) => x.id)));
-    for (const x of l) await logAction(null, "Expired (not paid)", x.ref);
-    await M.mailExpired(o, await bookingViews(l));
-    for (const x of l) await releaseHours(x.court_id, x.date, x.hours);
-    n++;
-  }
-  return n;
-}
 
-/* ---------- cron: reminder email 24 h before a confirmed booking ---------- */
-const startOf = (date: string, hours: number[]) => hourTs(date, Math.min(...hours));
+/* the cron reminders (24 h before) run in the tick Edge Function: supabase/functions/tick/jobs.ts */
 const startsWithinReminder = (date: string, hours: number[]) => withinReminder(date, Math.min(...hours));
-export async function remindUpcoming(): Promise<number> {
-  const today = todayKey();
-  const rows = must(await db().from("bookings").select("*").eq("branch_id", BRANCH_ID).eq("status", "approved")
-    .is("reminded_at", null).gte("date", today).lte("date", addDaysKey(today, Math.ceil(REMIND_HOURS / 24)))) as Booking[];
-  let n = 0;
-  for (const b of rows) {
-    const start = startOf(b.date, b.hours);
-    if (start <= Date.now() || !startsWithinReminder(b.date, b.hours)) continue;
-    // claim the row first so an overlapping run can't email twice
-    const claimed = must(await db().from("bookings").update({ reminded_at: new Date().toISOString() })
-      .eq("id", b.id).is("reminded_at", null).select("id")) as { id: string }[];
-    if (!claimed.length) continue;
-    await M.mailReminder(b, (await bookingViews([b]))[0], `reminder:${b.id}:${start}`);
-    n++;
-  }
-  return n;
-}

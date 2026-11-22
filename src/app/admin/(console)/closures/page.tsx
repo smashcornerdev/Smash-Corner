@@ -2,6 +2,9 @@ import { Fragment } from "react";
 import DataTable, { type Row } from "@/components/admin/DataTable";
 import ClosureForm from "@/components/admin/ClosureForm";
 import ModalButton from "@/components/admin/Modal";
+import TabIntro from "@/components/admin/TabIntro";
+import TabData from "@/components/admin/TabData";
+import { SkelBtn, SkelTable } from "@/components/admin/Skeleton";
 import { ActBtn } from "@/components/admin/ReasonForm";
 import { reopenClosureAction } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth";
@@ -11,8 +14,32 @@ import { closureDatesText, closureOn, closureReason, NO_END } from "@/lib/closur
 import { fmtDate, fmtH, manilaHour, todayKey } from "@/lib/time";
 import type { Closure } from "@/lib/types";
 
-/* Management → Closures (super-admins, spec §7) */
-export default async function ClosuresPage() {
+/* Management → Closures (super-admins, spec §7). Same motion as Court Bookings (v5.98): tab entrance, button border trace, window open/close. */
+export default function ClosuresPage() {
+  // v6.01: the note shows at once; + Close courts and the tables stream in after it (skeletons until then)
+  return (
+    <>
+      <TabIntro tab="closures" />
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+        <p className="muted" style={{ maxWidth: "68ch" }}>Close one or more courts for a whole day, several days, or a few hours, once or <b>every week on chosen days</b> (e.g. every Monday morning). Closed hours show as &quot;Closed&quot; on the booking page and can&apos;t be booked or waitlisted. Bookings already on those hours are cancelled with a 100% refund and each customer is emailed. Reopen removes a closure; bookings it cancelled stay cancelled.</p>
+        <TabData fallback={<SkelBtn w={150} />}><CloseCourtsBtn /></TabData>
+      </div>
+      <TabData tab="closures" fallback={<SkelTable cols={6} rows={3} search={false} />}><ClosuresData /></TabData>
+    </>
+  );
+}
+
+async function CloseCourtsBtn() {
+  await requireAdmin({ superOnly: true });
+  const courts = await getCourts();
+  return (
+    <ModalButton label="+ Close courts" eyebrow="Closures" title="Close courts" wide trace intro outro>
+      <ClosureForm courts={courts.map((c) => ({ id: c.id, name: c.name }))} today={todayKey()} />
+    </ModalButton>
+  );
+}
+
+async function ClosuresData() {
   await requireAdmin({ superOnly: true });
   const [all, courts] = await Promise.all([getClosures(), getCourts()]);
   const td = todayKey(), h = manilaHour();
@@ -27,17 +54,11 @@ export default async function ClosuresPage() {
       c.all_day ? "All day" : `${fmtH(c.start_hour)} – ${fmtH(c.end_hour)}`,
       closureReason(c),
       <small key="b">{c.cancelled_count} cancelled<br /><span className="muted">by {c.created_by}</span></small>,
-      old ? <span key="a" className="muted">—</span> : <ActBtn key="a" action={reopenClosureAction} fields={{ id: c.id }} label="Reopen" cls="btn-lime" />,
+      old ? <span key="a" className="muted">—</span> : <ActBtn key="a" action={reopenClosureAction} fields={{ id: c.id }} label="Reopen" cls="btn-lime" trace />,
     ],
   }));
   return (
     <>
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-        <p className="muted" style={{ maxWidth: "68ch" }}>Close one or more courts for a whole day, several days, or a few hours, once or <b>every week on chosen days</b> (e.g. every Monday morning). Closed hours show as &quot;Closed&quot; on the booking page and can&apos;t be booked or waitlisted. Bookings already on those hours are cancelled with a 100% refund and each customer is emailed. Reopen removes a closure; bookings it cancelled stay cancelled.</p>
-        <ModalButton label="+ Close courts" eyebrow="Closures" title="Close courts" wide>
-          <ClosureForm courts={courts.map((c) => ({ id: c.id, name: c.name }))} today={td} />
-        </ModalButton>
-      </div>
       <div className="stack"><h2 style={{ fontSize: "1.1rem" }}>Upcoming &amp; active</h2>
         <DataTable head={["Courts", "Dates", "Hours", "Reason", "Bookings", "Actions"]} rows={rows(upcoming, false)} empty="No closures scheduled." /></div>
       {past.length ? <details><summary style={{ cursor: "pointer", fontWeight: 600 }}>Past closures ({past.length})</summary><div style={{ marginTop: 10 }}><DataTable head={["Courts", "Dates", "Hours", "Reason", "Bookings", ""]} rows={rows(past, true)} /></div></details> : null}

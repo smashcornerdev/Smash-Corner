@@ -1,12 +1,12 @@
 "use client";
-import { useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
+import { fieldsClose, fieldsOpen, segPop } from "@/lib/gsap/segSwitch";
 import { openClassAction } from "@/app/actions/admin";
 import { CLOSE_HOUR, HOURS } from "@/lib/config";
 import { addDaysKey, fmtDate, fmtH } from "@/lib/time";
 
 type Rental = { name: string; fee: number; qty: number };
-function Submit() { const { pending } = useFormStatus(); return <button className="btn btn-lime" type="submit" disabled={pending}>{pending ? "Opening…" : "Open registration"}</button>; }
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /* Open registration (spec §7 Classes & Events; mockup "Open registration" modal) */
@@ -16,6 +16,36 @@ export default function ClassForm({ courts, rentals, today }: { courts: { id: st
   const [dlDate, setDlDate] = useState(addDaysKey(today, 6));
   const [dlHour, setDlHour] = useState(18);
   const [rent, setRent] = useState(true);
+  // rental fields stay in the page while their close animation plays (v5.86)
+  const [fieldsShown, setFieldsShown] = useState(true);
+  const fields = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  const still = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  useLayoutEffect(() => {
+    if (first.current) { first.current = false; return; } // no animation for the starting state
+    if (rent) {
+      // picked again while still closing (cleanup stopped the close half way): open them back up from where they are
+      if (fieldsShown) { if (fields.current?.style.height && !still()) fieldsOpen(fields.current); }
+      else setFieldsShown(true);
+      return;
+    }
+    if (!fields.current || still()) { setFieldsShown(false); return; }
+    const tw = fieldsClose(fields.current, () => flushSync(() => setFieldsShown(false)));
+    return () => { tw.kill(); };
+  }, [rent]); // eslint-disable-line react-hooks/exhaustive-deps -- runs on the switch only; fieldsShown is read as it is then
+  // opening: once the fields are in the page again
+  const wasShown = useRef(true);
+  useLayoutEffect(() => {
+    if (fieldsShown && !wasShown.current && fields.current && !still()) fieldsOpen(fields.current);
+    wasShown.current = fieldsShown;
+  }, [fieldsShown]);
+  const pick = (yes: boolean, e: React.ChangeEvent<HTMLInputElement>) => {
+    setRent(yes);
+    const label = e.currentTarget.closest("label");
+    if (label && !still()) segPop(label);
+  };
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
   const r = rentals[courts.find((c) => c.id === courtId)?.type ?? ""] ?? { name: "Equipment", fee: 0, qty: 0 };
   const item = r.name.toLowerCase();
   // the deadline can be any day from today up to the class date
@@ -23,7 +53,14 @@ export default function ClassForm({ courts, rentals, today }: { courts: { id: st
   if (date >= today) for (let d = today; d <= date; d = addDaysKey(d, 1)) dlDays.push(d);
   const dl = dlDays.includes(dlDate) ? dlDate : dlDays[Math.max(0, dlDays.length - 2)] ?? "";
   return (
-    <form action={openClassAction} className="stack">
+    // submitted by hand (not <form action>) so a refused request keeps the form open with everything the admin typed
+    <form className="stack" onSubmit={(e) => {
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      setErr("");
+      start(async () => { const r = await openClassAction(fd); if (r?.error) setErr(r.error); });
+    }}>
+      {err ? <div className="banner err" role="alert">{err}</div> : null}
       <div className="form-grid">
         <label className="f full"><span>Title</span><input className="inp" name="title" required minLength={3} maxLength={80} placeholder="e.g. Pickleball 101: Beginners Clinic" autoFocus /></label>
         <label className="f full"><span>Court</span>
@@ -44,18 +81,19 @@ export default function ClassForm({ courts, rentals, today }: { courts: { id: st
       </div>
       <fieldset style={{ border: 0, padding: 0, margin: 0 }} className="stack"><legend style={{ fontWeight: 600, marginBottom: 10 }}>Rentals</legend>
         <div className="seg">
-          <label><input type="radio" name="rentals" value="yes" checked={rent} onChange={() => setRent(true)} /> Offer {item} rental</label>
-          <label><input type="radio" name="rentals" value="no" checked={!rent} onChange={() => setRent(false)} /> No rentals</label>
+          <label><input type="radio" name="rentals" value="yes" checked={rent} onChange={(e) => pick(true, e)} /> Offer {item} rental</label>
+          <label><input type="radio" name="rentals" value="no" checked={!rent} onChange={(e) => pick(false, e)} /> No rentals</label>
         </div>
-        {rent ? (
-          <div className="form-grid" key={courtId}>
+        {/* rental fields slide open / shut when switching (v5.86) */}
+        {fieldsShown ? (
+          <div className="form-grid" key={courtId} ref={fields}>
             <label className="f"><span>Rental fee per {item}, whole class (₱)</span><input className="inp" type="number" name="rentalFee" min={0} defaultValue={r.fee} /></label>
             <label className="f"><span>How many to rent out</span><input className="inp" type="number" name="rentalQty" min={1} defaultValue={Math.max(1, r.qty)} /></label>
           </div>
         ) : null}
       </fieldset>
       <p className="muted" style={{ fontSize: ".86rem" }}>Tennis courts rent rackets; pickleball courts rent paddles. The court is blocked for court bookings during the class. It can&apos;t clash with a closure, another class, or existing court bookings.</p>
-      <div className="row"><Submit /><button className="btn btn-ghost" type="button" data-close="1">Cancel</button></div>
+      <div className="row"><button className="btn btn-lime" type="submit" disabled={pending} data-trace>{pending ? "Opening…" : "Open registration"}</button><button className="btn btn-ghost" type="button" data-close="1" data-trace>Cancel</button></div>
     </form>
   );
 }

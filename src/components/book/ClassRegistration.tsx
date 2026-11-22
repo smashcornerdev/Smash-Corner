@@ -1,9 +1,11 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { registerClassAction } from "@/app/actions/booking";
 import { peso, validEmail, validPhone } from "@/lib/format";
 import { fmtDateLong, fmtH, fmtTs, parseKey } from "@/lib/time";
+import SummaryLines from "@/components/book/SummaryLines";
+import { ClassSkel } from "@/components/book/BookSkeleton";
 
 export type BookableClass = {
   id: string; title: string; court: string; date: string; start: number; end: number; deadline: string; fee: number;
@@ -11,8 +13,21 @@ export type BookableClass = {
 };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/* Book page → Class / event tab (spec §6): one participant per registration, no payment until approved. */
-export default function ClassRegistration({ classes }: { classes: BookableClass[] }) {
+/* Book page → Class / event tab (spec §6): one participant per registration, no payment until approved.
+   The class list comes with the page when the Book page opens on this tab; otherwise it is fetched once, the first time the tab is shown. */
+export default function ClassRegistration({ classes: initial }: { classes?: BookableClass[] }) {
+  const [classes, setClasses] = useState<BookableClass[] | null>(initial ?? null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (initial) return;
+    fetch("/api/classes", { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setClasses(d.classes)).catch(() => setFailed(true));
+  }, [initial]);
+  if (failed) return <div className="panel" style={{ marginBottom: 60 }}><p className="muted">Could not load classes. Please refresh the page.</p></div>;
+  if (!classes) return <ClassSkel />; // skeleton while the first-click fetch runs (v6.04)
+  return <ClassForm classes={classes} />;
+}
+
+function ClassForm({ classes }: { classes: BookableClass[] }) {
   const open = classes.filter((c) => !c.full);
   const [sel, setSel] = useState<string | null>(open.length === 1 ? open[0].id : null);
   const [rent, setRent] = useState<"yes" | "no" | null>(null);
@@ -30,7 +45,7 @@ export default function ClassRegistration({ classes }: { classes: BookableClass[
         <div className="empty">
           <b style={{ fontFamily: "var(--display)", fontSize: "1.1rem", color: "var(--fg)" }}>Class registration is closed</b>
           <p>No classes or events are open for registration right now. Please check back soon.</p>
-          <div className="row" style={{ justifyContent: "center" }}><Link href="/book" className="btn btn-lime">Book a court instead</Link><Link href="/programs" className="btn btn-ghost">See our programs</Link></div>
+          <div className="row" style={{ justifyContent: "center" }}><button type="button" className="btn btn-lime" onClick={() => window.history.pushState(null, "", "/book")}>Book a court instead</button><Link href="/programs" className="btn btn-ghost">See our programs</Link></div>
         </div>
       </div>
     );
@@ -128,13 +143,15 @@ export default function ClassRegistration({ classes }: { classes: BookableClass[
         <h4>Registration summary</h4>
         {k ? (
           <>
-            <div className="line"><span>Class</span><span style={{ textAlign: "right" }}>{k.title}</span></div>
-            <div className="line"><span>Court</span><span>{k.court}</span></div>
-            <div className="line"><span>Date</span><span>{fmtDateLong(k.date)}</span></div>
-            <div className="line"><span>Time</span><span>{fmtH(k.start)} – {fmtH(k.end)}</span></div>
-            <div className="line"><span>Class fee</span><span className="tabnum">{peso(k.fee)}</span></div>
-            {rent === "yes" && k.rentalFee != null ? <div className="line"><span>1 × {k.rentalItem} rental</span><span className="tabnum">{peso(k.rentalFee)}</span></div> : null}
-            <div className="line total"><span>Total</span><span className="tabnum">{peso(total)}</span></div>
+            <SummaryLines lines={[
+              { k: "class", label: "Class", value: k.title, valueStyle: { textAlign: "right" } },
+              { k: "court", label: "Court", value: k.court },
+              { k: "date", label: "Date", value: fmtDateLong(k.date) },
+              { k: "time", label: "Time", value: `${fmtH(k.start)} – ${fmtH(k.end)}` },
+              { k: "fee", label: "Class fee", value: peso(k.fee), valueCls: "tabnum" },
+              ...(rent === "yes" && k.rentalFee != null ? [{ k: "rental", label: `1 × ${k.rentalItem} rental`, value: peso(k.rentalFee), valueCls: "tabnum" }] : []),
+              { k: "total", label: "Total", value: peso(total), cls: "total", valueCls: "tabnum" },
+            ]} />
             <p className="muted" style={{ fontSize: ".78rem" }}>Register by {fmtTs(k.deadline)}. No payment yet: you pay within 24 hours after an admin approves your registration, and your slot is confirmed once your payment is verified.</p>
           </>
         ) : <p className="muted">Choose a class to register.</p>}

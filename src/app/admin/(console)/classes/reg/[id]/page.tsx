@@ -43,13 +43,13 @@ export default async function RegView({ params }: { params: Promise<{ id: string
           <div className="stack" style={{ gap: 8 }}><h4>Proof of payment</h4><Receipt path={r.proof_path} status={r.status} free={r.total === 0} dueAt={r.pay_due_at} paidAt={r.paid_at} /></div>
         </div>
         {r.status === "pending" || r.status === "verify" ? (
-          <div className="row"><ActBtn action={approveRegAction} fields={{ id: r.id, back }} label={r.status === "verify" ? "Confirm payment" : "Approve"} small={false} /></div>
+          <div className="row"><ActBtn action={approveRegAction} fields={{ id: r.id, back }} label={r.status === "verify" ? "Confirm payment" : "Approve"} small={false} trace /></div>
         ) : null}
       </div>
       {r.status === "pending" || r.status === "verify" ? (
         <div className="panel" id="reject">
           <h3>Reject {r.ref}</h3>
-          <ReasonForm action={rejectRegAction} id={r.id} back={back} label="Reject registration"
+          <ReasonForm action={rejectRegAction} id={r.id} back={back} label="Reject registration" trace
             chips={r.status === "verify" ? ["Proof of payment is unclear.", "Amount paid does not match the total.", "Payment was not received."] : ["The class is full.", "Please contact us about this class."]}
             note={(r.status === "verify" ? "The payment is refunded in full. " : "Nothing was paid yet. ") + "The slot opens up for someone else."} />
         </div>

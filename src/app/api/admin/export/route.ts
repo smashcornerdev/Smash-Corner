@@ -3,10 +3,10 @@ import * as XLSX from "xlsx";
 import { assertAdmin } from "@/lib/auth";
 import { BRANCH_ID } from "@/lib/config";
 import { db, must } from "@/lib/supabase";
-import { getCourts, getEquipment } from "@/lib/catalog";
-import { equipmentText } from "@/lib/pricing";
+import { getCourts, getAllEquipment } from "@/lib/catalog";
+import { CLASS_HEAD, COURT_HEAD, classRecord, courtRecord } from "@/lib/records";
 import { logAction } from "@/lib/log";
-import { fmtH, fmtRange, fmtTs, parseKey } from "@/lib/time";
+import { fmtH, fmtTs, parseKey } from "@/lib/time";
 import { ST_LABEL, type ClassReg, type ClassRow } from "@/lib/types";
 import type { BookingRow } from "@/lib/adminData";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const statuses = (q.getAll("stx").length ? q.getAll("stx") : (q.get("st") || "approved,rejected,cancelled").split(",")).filter((s) => s in ST_LABEL);
   const courtsWanted = q.getAll("cx").length ? q.getAll("cx") : (q.get("courts") || "").split(",").filter(Boolean);
   const classIds = q.getAll("kx"), preview = q.get("preview") === "1"; // preview: JSON count + first rows for the Export window, no file, not logged
-  const [courts, items] = await Promise.all([getCourts(), getEquipment()]);
+  const [courts, items] = await Promise.all([getCourts(), getAllEquipment()]);
   const cname = (id: string) => courts.find((c) => c.id === id)?.name ?? id;
   const inRange = (k: string) => (!from || k >= from) && (!to || k <= to);
   const head: string[] = [], rows: unknown[][] = [];
@@ -38,13 +38,11 @@ export async function GET(req: NextRequest) {
 
   if (kind === "court") {
     const list = must(await db().from("bookings").select("*, orders(*)").eq("branch_id", BRANCH_ID).in("status", statuses).order("date")) as BookingRow[];
-    head.push("Reference", "Status", "Customer", "Email", "Contact number", "Court", "Booking date", "Time", "Hours", "Players", "Equipment", "Court fee", "Equipment fee", "Total", "Payment method", "Payment reference", "Submitted", "Reason", "Refund %", "Refund amount", "Edited by admin");
+    head.push(...COURT_HEAD);
     for (const b of list) {
       if (courtsWanted.length && !courtsWanted.includes(b.court_id)) continue;
       if (!inRange(basis === "play" ? b.date : b.created_at.slice(0, 10))) continue;
-      const refund = Math.round((b.total * (b.refund_pct ?? 0)) / 100);
-      rows.push([b.ref, ST_LABEL[b.status], b.name, b.email, b.phone, cname(b.court_id), excelDate(b.date), fmtRange(b.hours), b.hours.length, b.players, equipmentText(b.equipment, items),
-        b.court_fee, b.equipment_fee, b.total, b.orders.method_name ?? "", b.orders.pay_ref ?? "", fmtTs(b.created_at), b.reason, b.refund_pct ?? "", b.refund_pct != null ? refund : "", b.edited ? "Yes" : "No"]);
+      rows.push(courtRecord(b, cname, items, excelDate));
       sample.push([b.ref, b.name, cname(b.court_id), b.date, b.status, b.total]);
       tally(b.status, b.total, b.refund_pct);
     }
@@ -52,14 +50,12 @@ export async function GET(req: NextRequest) {
     const classes = must(await db().from("classes").select("*").eq("branch_id", BRANCH_ID)) as ClassRow[];
     classList = classes;
     const regs = classes.length ? must(await db().from("class_registrations").select("*").in("class_id", classes.map((k) => k.id)).in("status", statuses).order("created_at")) as ClassReg[] : [];
-    head.push("Reference", "Status", "Class / event", "Court", "Class date", "Time", "Full name", "Nickname", "Age", "Email", "Contact number", "Rental", "Class fee", "Rental fee", "Total", "Payment method", "Payment reference", "Submitted", "Reason", "Refund %", "Refund amount");
+    head.push(...CLASS_HEAD);
     for (const r of regs) {
       const k = classes.find((x) => x.id === r.class_id)!;
       if (classIds.length && !classIds.includes(k.id)) continue;
       if (!inRange(basis === "play" ? k.date : r.created_at.slice(0, 10))) continue;
-      const rentalFee = r.rent ? k.rental_fee ?? 0 : 0, refund = Math.round((r.total * (r.refund_pct ?? 0)) / 100);
-      rows.push([r.ref, ST_LABEL[r.status], k.title, cname(k.court_id), excelDate(k.date), `${fmtH(k.start_hour)} – ${fmtH(k.end_hour)}`, r.name, r.nickname, r.age, r.email, r.phone,
-        r.rent ? "Yes" : "No", k.fee, rentalFee, r.total, r.method_name ?? "", r.pay_ref ?? "", fmtTs(r.created_at), r.reason, r.refund_pct ?? "", r.refund_pct != null ? refund : ""]);
+      rows.push(classRecord(r, k, cname, excelDate));
       sample.push([r.ref, r.name, k.title, k.date, r.status, r.total]);
       tally(r.status, r.total, r.refund_pct);
     }

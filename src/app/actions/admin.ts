@@ -3,19 +3,28 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import { BRANCH_ID, CLOSE_HOUR, CLOSURE_CATEGORIES, OPEN_HOUR } from "@/lib/config";
+import { BRANCH_ID, CLOSE_HOUR, CLOSURE_CATEGORIES, OPEN_HOUR, RENT_ITEM } from "@/lib/config";
 import { db, must } from "@/lib/supabase";
 import { logAction } from "@/lib/log";
-import { uploadQr } from "@/lib/storage";
+import { receiptUrl, uploadQr } from "@/lib/storage";
 import { hourTs } from "@/lib/time";
 import { FlowError, approve, cancel, edit, reject } from "@/lib/flows/bookings";
 import { approveReg, cancelClass, rejectReg } from "@/lib/flows/classes";
 import { applyClosure, type ClosureDraft } from "@/lib/flows/closures";
 import { approveEntry, declineEntry, notifyWaitlist, processSlot } from "@/lib/flows/waitlist";
 import { dayStates } from "@/lib/availability";
+import { normPhone } from "@/lib/blacklist";
 import type { WaitlistEntry } from "@/lib/types";
 
 /* All admin mutations. Each one re-checks the signed-in admin (and role) on the server (spec §7 Access). */
+
+/** a fresh short-lived link to an order's proof of payment, fetched when a preloaded booking card opens (spec §7, v5.76) */
+export async function proofLinkAction(orderId: string): Promise<{ url: string | null; pdf: boolean }> {
+  await assertAdmin();
+  const { data } = await db().from("orders").select("proof_path").eq("id", orderId).maybeSingle();
+  const path = (data as { proof_path: string | null } | null)?.proof_path ?? null;
+  return { url: await receiptUrl(path), pdf: !!path?.endsWith(".pdf") };
+}
 
 /** run, then go back to `back` with a message banner */
 async function act(back: string, fn: () => Promise<string>): Promise<never> {
@@ -122,35 +131,44 @@ const classSchema = z.object({
   capacity: z.coerce.number().int().min(1, "Capacity is at least 1."), fee: z.coerce.number().int().min(0, "The fee is 0 or more."),
   rentals: z.enum(["yes", "no"]), rentalFee: z.coerce.number().int().min(0).optional(), rentalQty: z.coerce.number().int().min(0).optional(),
 });
-export async function openClassAction(fd: FormData) {
+/** returns the error instead of redirecting, so the open form keeps what the admin typed; on success it redirects as usual */
+export async function openClassAction(fd: FormData): Promise<{ error: string }> {
   const a = await assertAdmin();
-  return act("/admin/classes", async () => {
-    const p = classSchema.safeParse(Object.fromEntries(fd));
-    if (!p.success) throw new FlowError(p.error.issues[0]?.message ?? "Check the form.");
-    const d = p.data;
-    if (!(d.start >= OPEN_HOUR && d.end <= CLOSE_HOUR && d.end > d.start)) throw new FlowError("Choose a start and end time within opening hours.");
-    const startTs = hourTs(d.date, d.start);
-    const deadline = new Date(`${d.deadline}:00+08:00`).getTime();
-    if (startTs <= Date.now()) throw new FlowError("The class time has already started.");
-    if (!(deadline > Date.now() && deadline < startTs)) throw new FlowError("The deadline must be in the future and before the class starts.");
-    const hours = Array.from({ length: d.end - d.start }, (_, i) => d.start + i);
-    const states = await dayStates(d.courtId, d.date, null);
-    if (hours.some((h) => states[h] === "closed")) throw new FlowError("The court is closed at that time.");
-    if (hours.some((h) => states[h] === "class")) throw new FlowError("Another class already uses the court at that time.");
-    const clash = must(await db().from("bookings").select("ref, hours").eq("court_id", d.courtId).eq("date", d.date).in("status", ["pending", "awaiting", "verify", "approved"])) as { ref: string; hours: number[] }[];
-    const hit = clash.filter((b) => b.hours.some((h) => hours.includes(h)));
-    if (hit.length) throw new FlowError(`Court bookings already use that time: ${hit.map((b) => b.ref).join(", ")}. Move them first.`);
-    const k = must(await db().from("classes").insert({
-      branch_id: BRANCH_ID, title: d.title, court_id: d.courtId, date: d.date, start_hour: d.start, end_hour: d.end, deadline: new Date(deadline).toISOString(),
-      capacity: d.capacity, fee: d.fee, rental_fee: d.rentals === "yes" ? d.rentalFee ?? 0 : null, rental_qty: d.rentals === "yes" ? d.rentalQty ?? 0 : 0, created_by: a.name,
-    }).select().single()) as { title: string };
-    // cart holds on those hours are dropped
-    const holds = must(await db().from("holds").select("id, hours").eq("court_id", d.courtId).eq("date", d.date)) as { id: string; hours: number[] }[];
-    const drop = holds.filter((h) => h.hours.some((x) => hours.includes(x))).map((h) => h.id);
-    if (drop.length) await db().from("holds").delete().in("id", drop);
-    await logAction(a, "Class registration opened", k.title, `${d.courtId} · ${d.date} ${d.start}–${d.end} · ${d.capacity} slots`);
-    return `Registration is open. "${k.title}" is now on the Book page.`;
-  });
+  let done: string;
+  try {
+    done = await openClass(a, fd);
+  } catch (e) {
+    if (!(e instanceof FlowError)) console.error(e);
+    return { error: e instanceof Error ? e.message : "Something went wrong." };
+  }
+  return act("/admin/classes", async () => done);
+}
+async function openClass(a: Awaited<ReturnType<typeof assertAdmin>>, fd: FormData) {
+  const p = classSchema.safeParse(Object.fromEntries(fd));
+  if (!p.success) throw new FlowError(p.error.issues[0]?.message ?? "Check the form.");
+  const d = p.data;
+  if (!(d.start >= OPEN_HOUR && d.end <= CLOSE_HOUR && d.end > d.start)) throw new FlowError("Choose a start and end time within opening hours.");
+  const startTs = hourTs(d.date, d.start);
+  const deadline = new Date(`${d.deadline}:00+08:00`).getTime();
+  if (startTs <= Date.now()) throw new FlowError("The class time has already started.");
+  if (!(deadline > Date.now() && deadline < startTs)) throw new FlowError("The deadline must be in the future and before the class starts.");
+  const hours = Array.from({ length: d.end - d.start }, (_, i) => d.start + i);
+  const states = await dayStates(d.courtId, d.date, null);
+  if (hours.some((h) => states[h] === "closed")) throw new FlowError("The court is closed at that time.");
+  if (hours.some((h) => states[h] === "class")) throw new FlowError("Another class already uses the court at that time.");
+  const clash = must(await db().from("bookings").select("ref, hours").eq("court_id", d.courtId).eq("date", d.date).in("status", ["pending", "awaiting", "verify", "approved"])) as { ref: string; hours: number[] }[];
+  const hit = clash.filter((b) => b.hours.some((h) => hours.includes(h)));
+  if (hit.length) throw new FlowError(`Court bookings already use that time: ${hit.map((b) => b.ref).join(", ")}. Move them first.`);
+  const k = must(await db().from("classes").insert({
+    branch_id: BRANCH_ID, title: d.title, court_id: d.courtId, date: d.date, start_hour: d.start, end_hour: d.end, deadline: new Date(deadline).toISOString(),
+    capacity: d.capacity, fee: d.fee, rental_fee: d.rentals === "yes" ? d.rentalFee ?? 0 : null, rental_qty: d.rentals === "yes" ? d.rentalQty ?? 0 : 0, created_by: a.name,
+  }).select().single()) as { title: string };
+  // cart holds on those hours are dropped
+  const holds = must(await db().from("holds").select("id, hours").eq("court_id", d.courtId).eq("date", d.date)) as { id: string; hours: number[] }[];
+  const drop = holds.filter((h) => h.hours.some((x) => hours.includes(x))).map((h) => h.id);
+  if (drop.length) await db().from("holds").delete().in("id", drop);
+  await logAction(a, "Class registration opened", k.title, `${d.courtId} · ${d.date} ${d.start}–${d.end} · ${d.capacity} slots`);
+  return `Registration is open. "${k.title}" is now on the Book page.`;
 }
 
 /* ---------- management (super-admins) ---------- */
@@ -247,16 +265,90 @@ export async function paymentMethodAction(fd: FormData) {
   });
 }
 
+const UNITS = ["hour", "session"] as const;
+const money = (v: string) => (/^\d+$/.test(v) ? Number(v) : NaN);
+const unitOf = (v: string) => ((UNITS as readonly string[]).includes(v) ? (v as (typeof UNITS)[number]) : null);
+
+/* Management → Equipment Inventory (spec §7, v6.05): one Save for every item's name, price, per hour / per session, owned and out of service */
 export async function inventoryAction(fd: FormData) {
   const a = await assertAdmin({ superOnly: true });
   return act("/admin/inventory", async () => {
-    const items = must(await db().from("inventory").select("item_id").eq("branch_id", BRANCH_ID)) as { item_id: string }[];
-    for (const { item_id } of items) {
-      const owned = Number(s(fd, `own-${item_id}`)), out = Number(s(fd, `out-${item_id}`));
+    const items = must(await db().from("equipment_items").select("id, name, deleted")) as { id: string; name: string; deleted: boolean | null }[];
+    const live = items.filter((i) => !i.deleted && fd.has(`own-${i.id}`));
+    const names = new Set<string>();
+    for (const { id } of live) {
+      const name = s(fd, `name-${id}`), rate = money(s(fd, `rate-${id}`)), unit = unitOf(s(fd, `unit-${id}`));
+      const owned = Number(s(fd, `own-${id}`)), out = Number(s(fd, `out-${id}`));
+      if (!name) throw new FlowError("Every item needs a name.");
+      if (names.has(name.toLowerCase())) throw new FlowError(`Two items are called "${name}". Give each item its own name.`);
+      names.add(name.toLowerCase());
+      if (!Number.isInteger(rate) || rate < 0) throw new FlowError(`Check the price of ${name}: whole pesos, 0 or more.`);
+      if (!unit) throw new FlowError(`Choose per hour or per session for ${name}.`);
       if (!Number.isInteger(owned) || !Number.isInteger(out) || owned < 0 || out < 0 || out > owned) throw new FlowError("Check the numbers: out of service cannot be more than owned.");
-      must(await db().from("inventory").update({ owned, out_of_service: out }).eq("branch_id", BRANCH_ID).eq("item_id", item_id));
+      must(await db().from("equipment_items").update({ name, rate, unit }).eq("id", id));
+      must(await db().from("inventory").upsert({ branch_id: BRANCH_ID, item_id: id, owned, out_of_service: out }, { onConflict: "branch_id,item_id" }));
     }
     await logAction(a, "Inventory updated");
     return "Inventory saved.";
+  });
+}
+
+/* delete a rental item (spec §7, v6.05): it is hidden from customers and admins; past bookings keep showing its name.
+   The class rental items (racket, paddle) can't be deleted: class registrations rent them.
+   Bound to the item id by the Delete button (a button inside the Save form can't carry its own name/value with a function formAction). */
+export async function deleteRentalItemAction(id: string) {
+  const a = await assertAdmin({ superOnly: true });
+  return act("/admin/inventory", async () => {
+    if (Object.values(RENT_ITEM).includes(id)) throw new FlowError("This item is rented with classes, so it can't be deleted. Set its owned count to 0 to stop offering it.");
+    const it = must(await db().from("equipment_items").select("name").eq("id", id).single()) as { name: string };
+    must(await db().from("equipment_items").update({ deleted: true }).eq("id", id));
+    await logAction(a, "Rental item deleted", it.name);
+    return `${it.name} deleted. Customers can no longer rent it.`;
+  });
+}
+
+/* add a rental item (spec §7, v6.05) */
+export async function rentalItemAction(fd: FormData) {
+  const a = await assertAdmin({ superOnly: true });
+  return act("/admin/inventory", async () => {
+    const name = s(fd, "name"), type = s(fd, "type"), rate = money(s(fd, "rate")), unit = unitOf(s(fd, "unit")), owned = Number(s(fd, "owned") || "0");
+    if (!name) throw new FlowError("Enter the item's name, e.g. Tennis Racket.");
+    if (type !== "tennis" && type !== "pickle") throw new FlowError("Choose the sport this item is for.");
+    if (!Number.isInteger(rate) || rate < 0) throw new FlowError("Enter the price in whole pesos (0 or more).");
+    if (!unit) throw new FlowError("Choose per hour or per session.");
+    if (!Number.isInteger(owned) || owned < 0) throw new FlowError("Enter how many you own (0 or more).");
+    const all = must(await db().from("equipment_items").select("id, name, deleted, sort_order")) as { id: string; name: string; deleted: boolean | null; sort_order: number }[];
+    if (all.some((i) => !i.deleted && i.name.toLowerCase() === name.toLowerCase())) throw new FlowError("Another item already uses this name.");
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "item";
+    let id = base;
+    for (let n = 2; all.some((i) => i.id === id); n++) id = `${base}-${n}`;
+    must(await db().from("equipment_items").insert({ id, name, type, rate, unit, sort_order: Math.max(0, ...all.map((i) => i.sort_order)) + 1 }));
+    must(await db().from("inventory").insert({ branch_id: BRANCH_ID, item_id: id, owned, out_of_service: 0 }));
+    await logAction(a, "Rental item added", name, `₱${rate} per item, per ${unit}`);
+    return `${name} added.`;
+  });
+}
+
+/* Management → Blacklist (spec §7, v6.13): add a person (full name, phone, email: at least one; note optional) or remove one */
+export async function blacklistAction(fd: FormData) {
+  const a = await assertAdmin({ superOnly: true });
+  return act("/admin/blacklist", async () => {
+    const remove = s(fd, "remove");
+    if (remove) {
+      const e = must(await db().from("blacklist").select("name, phone, email").eq("id", remove).single()) as { name: string; phone: string; email: string };
+      must(await db().from("blacklist").delete().eq("id", remove));
+      const who = e.name || e.email || e.phone;
+      await logAction(a, "Removed from blacklist", who);
+      return `${who} removed from the blacklist.`;
+    }
+    const name = s(fd, "name").replace(/\s+/g, " "), phone = s(fd, "phone"), email = s(fd, "email").toLowerCase(), note = s(fd, "note");
+    if (!name && !phone && !email) throw new FlowError("Enter at least a full name, phone number or email.");
+    if (name.length > 120 || phone.length > 40 || email.length > 200 || note.length > 500) throw new FlowError("One of the details is too long.");
+    if (phone && normPhone(phone).length < 7) throw new FlowError("Check the phone number.");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new FlowError("Check the email address.");
+    must(await db().from("blacklist").insert({ branch_id: BRANCH_ID, name, phone, email, note, added_by: a.name }));
+    const who = name || email || phone;
+    await logAction(a, "Added to blacklist", who, [phone, email, note].filter(Boolean).join(" · "));
+    return `${who} added to the blacklist.`;
   });
 }

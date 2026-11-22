@@ -1,3 +1,6 @@
+import TabIntro from "@/components/admin/TabIntro";
+import TabData from "@/components/admin/TabData";
+import { SkelTable } from "@/components/admin/Skeleton";
 import DataTable, { type Row } from "@/components/admin/DataTable";
 import { ActBtn } from "@/components/admin/ReasonForm";
 import { Pill } from "@/components/ui";
@@ -5,12 +8,24 @@ import { waitlistAction } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth";
 import { BRANCH_ID } from "@/lib/config";
 import { getCourts } from "@/lib/catalog";
+import TableExport from "@/components/admin/TableExport";
 import { db, must } from "@/lib/supabase";
 import { ago, fmtDate, fmtH, fmtTs, todayKey } from "@/lib/time";
 import type { WaitlistEntry } from "@/lib/types";
 
 /* Waitlist (spec §9): customers apply, admins approve or decline; the line is FIFO by approval time; admins can notify now or remove */
-export default async function WaitlistPage() {
+export default function WaitlistPage() {
+  // v6.01: the note shows at once; the table streams in after it (skeleton until then)
+  return (
+    <>
+      <TabIntro tab="waitlist" />
+      <p className="muted" style={{ maxWidth: "70ch" }}>Customers apply for the waitlist; approve an application to put them at the back of the line for that slot, or decline it. When a slot frees up, the first person in line is emailed a claim link that holds the slot for 2 hours, then it moves to the next person. The hand-off runs automatically.</p>
+      <TabData tab="waitlist" fallback={<SkelTable cols={6} />}><WaitlistData /></TabData>
+    </>
+  );
+}
+
+async function WaitlistData() {
   await requireAdmin();
   const [courts, list] = await Promise.all([
     getCourts(),
@@ -30,7 +45,7 @@ export default async function WaitlistPage() {
         <small key="j">{ago(w.created_at)}{w.approved_at ? <><br /><span className="muted">approved {ago(w.approved_at)}</span></> : null}</small>,
         <div className="acts" key="a">
           {w.status === "applied" ? <>
-            <ActBtn action={waitlistAction} fields={{ id: w.id, op: "approve" }} label="Approve" />
+            <ActBtn action={waitlistAction} fields={{ id: w.id, op: "approve" }} label="Approve" trace />
             <ActBtn action={waitlistAction} fields={{ id: w.id, op: "decline" }} label="Decline" cls="btn-danger" />
           </> : null}
           {w.status === "waiting" ? <ActBtn action={waitlistAction} fields={{ id: w.id, op: "notify" }} label="Notify now" cls="btn-lav" /> : null}
@@ -39,10 +54,5 @@ export default async function WaitlistPage() {
       ],
     };
   });
-  return (
-    <>
-      <p className="muted" style={{ maxWidth: "70ch" }}>Customers apply for the waitlist; approve an application to put them at the back of the line for that slot, or decline it. When a slot frees up, the first person in line is emailed a claim link that holds the slot for 2 hours, then it moves to the next person. The hand-off runs automatically.</p>
-      <DataTable head={["Slot", "#", "Customer", "Status", "Applied", "Actions"]} rows={rows} empty="No one is on the waitlist." />
-    </>
-  );
+  return <DataTable head={["Slot", "#", "Customer", "Status", "Applied", "Actions"]} rows={rows} empty="No one is on the waitlist." tools={<TableExport courts={courts} />} />;
 }

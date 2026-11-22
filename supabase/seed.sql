@@ -1,7 +1,7 @@
 -- Smash Corner · starter data (dummy values from spec §15, §16). Replace before launch.
 
 insert into branches (id, name, short_name, address) values
-  ('qc', 'Smash Corner QC', 'QC', 'Lorem Ipsum St., Quezon City');
+  ('qc', 'Smash Corner QC', 'QC', '98 Maria Clara St. corner Sto. Domingo Ave., Quezon City, Philippines');
 
 insert into courts (id, name, type, rate, min_players, max_players, note, surface, size, sort_order) values
   ('t1', 'Tennis Court 1',     'tennis', 1200, 1, 4, 'Includes ball boy',   'Hard court',        '23.77 × 10.97 m', 1),

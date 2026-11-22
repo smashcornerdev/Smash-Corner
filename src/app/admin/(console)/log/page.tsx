@@ -1,4 +1,7 @@
 import DataTable, { type Row } from "@/components/admin/DataTable";
+import TabIntro from "@/components/admin/TabIntro";
+import TabData from "@/components/admin/TabData";
+import { SkelTable } from "@/components/admin/Skeleton";
 import { requireAdmin } from "@/lib/auth";
 import { BRANCH_ID } from "@/lib/config";
 import { db, must } from "@/lib/supabase";
@@ -7,7 +10,12 @@ import { fmtTs } from "@/lib/time";
 type Log = { id: number; at: string; admin_name: string; action: string; ref: string; note: string };
 
 /* Activity Log (super-admins only, spec §7 Access) */
-export default async function LogPage() {
+export default function LogPage() {
+  // v6.01: the tab opens at once; the log streams in after it (skeleton until then)
+  return <><TabIntro tab="log" /><TabData tab="log" fallback={<SkelTable cols={5} rows={8} />}><LogData /></TabData></>;
+}
+
+async function LogData() {
   await requireAdmin({ superOnly: true });
   const list = must(await db().from("activity_log").select("*").eq("branch_id", BRANCH_ID).order("at", { ascending: false }).limit(1000)) as Log[];
   const rows: Row[] = list.map((l) => ({

@@ -6,7 +6,7 @@ import { CLOSE_HOUR, CLOSURE_CATEGORIES, HOURS } from "@/lib/config";
 import { fmtH } from "@/lib/time";
 
 const WD: [number, string][] = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
-function Submit() { const { pending } = useFormStatus(); return <button className="btn btn-danger" type="submit" disabled={pending}>{pending ? "Closing…" : "Close courts"}</button>; }
+function Submit() { const { pending } = useFormStatus(); return <button className="btn btn-danger" type="submit" disabled={pending} data-trace>{pending ? "Closing…" : "Close courts"}</button>; }
 
 /* New closure (spec §7 Closures): courts, dates (single, range or weekly), whole day or hours, reason */
 export default function ClosureForm({ courts, today }: { courts: { id: string; name: string }[]; today: string }) {
@@ -47,7 +47,7 @@ export default function ClosureForm({ courts, today }: { courts: { id: string; n
         <label className="f"><span>Note (optional, shown to customers)</span><input className="inp" name="note" placeholder="e.g. Court resurfacing" /></label>
       </div>
       <p className="muted" style={{ fontSize: ".86rem" }}>Bookings already on those hours are cancelled with a 100% refund for anyone who paid, and each customer is emailed with a &quot;Book another time&quot; link. Waitlist entries on those hours are removed and notified.</p>
-      <div className="row"><Submit /><button className="btn btn-ghost" type="button" data-close="1">Back</button></div>
+      <div className="row"><Submit /><button className="btn btn-ghost" type="button" data-close="1" data-trace>Back</button></div>
     </form>
   );
 }

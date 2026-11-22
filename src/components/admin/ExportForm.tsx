@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { arrowDip } from "@/lib/gsap/arrowDip";
 import ModalButton from "@/components/admin/Modal";
 import { Pill } from "@/components/ui";
 import { peso } from "@/lib/format";
@@ -28,7 +29,7 @@ type Preview = { count: number; total: number; sample: (string | number)[][]; cl
 
 export default function ExportButton({ kind, courts }: { kind: "court" | "class"; courts: { id: string; name: string }[] }) {
   return (
-    <ModalButton label="⤓ Export to Excel" cls="btn-lav" eyebrow="Export to Excel" title="Export customer records" wide>
+    <ModalButton label={<><span className="exp-ic" aria-hidden="true">⤓</span><span className="exp-txt">Export to Excel</span></>} ariaLabel="Export to Excel" cls="btn-lav exp-btn" eyebrow="Export to Excel" title="Export customer records" wide trace intro outro>
       <ExportBody initial={kind} courts={courts} />
     </ModalButton>
   );
@@ -44,6 +45,7 @@ function ExportBody({ initial, courts }: { initial: "court" | "class"; courts: {
   const [kx, setKx] = useState<string[] | null>(null); // null = every class in range
   const [pv, setPv] = useState<Preview | null>(null);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true); // preview table shows a loading state on every filter change (v5.90)
   const isC = kind === "court";
 
   const query = useMemo(() => {
@@ -56,12 +58,13 @@ function ExportBody({ initial, courts }: { initial: "court" | "class"; courts: {
   const none = !st.length || (isC ? !cx.length : kx !== null && !kx.length);
 
   useEffect(() => {
-    if (none) { setPv((p) => (p ? { ...p, count: 0, total: 0, sample: [] } : p)); return; }
+    if (none) { setLoading(false); setPv((p) => (p ? { ...p, count: 0, total: 0, sample: [] } : p)); return; }
     const ac = new AbortController();
+    setLoading(true);
     fetch(`/api/admin/export?preview=1&${query}`, { signal: ac.signal, cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
-      .then((d: Preview) => { setPv(d); setErr(""); })
-      .catch((e) => { if (e.name !== "AbortError") setErr("Couldn't load the preview. Check your connection."); });
+      .then((d: Preview) => { setPv(d); setErr(""); setLoading(false); })
+      .catch((e) => { if (e.name !== "AbortError") { setErr("Couldn't load the preview. Check your connection."); setLoading(false); } });
     return () => ac.abort();
   }, [query, none]);
 
@@ -99,7 +102,7 @@ function ExportBody({ initial, courts }: { initial: "court" | "class"; courts: {
             </select>
           </label>
         </div>
-        <p className="tp-hint" style={{ margin: 0 }}>Range: <b>{rangeText}</b></p>
+        <p className="tp-hint" style={{ margin: 0 }}><span className="tp-in">Range: <b>{rangeText}</b></span></p>
       </fieldset>
       {!isC ? (
         <fieldset className="stack ex-fs"><legend>Classes / events{basis === "play" ? " in this date range" : ""}</legend>
@@ -119,20 +122,41 @@ function ExportBody({ initial, courts }: { initial: "court" | "class"; courts: {
         </fieldset>
       ) : null}
       <div className={"banner" + (count ? " lime" : "")}><b>{pv || none ? `${count} record${count === 1 ? "" : "s"}` : "Counting records…"}</b>{pv || none ? " will be exported" : ""}{count ? ` · total ${peso(pv!.total)}` : ""}{pv || none ? "." : ""}</div>
-      {count && pv ? (
+      {loading || (count && pv) ? (
         <>
-          <div className="tbl-wrap"><table className="tbl">
+          <div className={"tbl-wrap ex-pv" + (loading ? " is-loading" : "")} aria-busy={loading || undefined}><table className="tbl">
             <thead><tr>{(isC ? ["Ref", "Customer", "Court", "Date", "Status", "Total"] : ["Ref", "Participant", "Class", "Class date", "Status", "Total"]).map((h) => <th key={h} className={h === "Total" ? "num" : undefined}>{h}</th>)}</tr></thead>
-            <tbody>{pv.sample.map((r) => (
+            <tbody>{pv?.sample.length ? pv.sample.map((r) => (
               <tr key={String(r[0])}><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{fmtDate(String(r[3]))}</td><td><Pill s={String(r[4])} /></td><td className="num">{peso(Number(r[5]))}</td></tr>
-            ))}</tbody>
-          </table></div>
-          {count > 5 ? <p className="muted" style={{ fontSize: ".82rem", marginTop: -8 }}>Showing the first 5. The file has all {count}, with every column.</p> : null}
+            )) : [0, 1, 2].map((i) => <tr key={i} className="ex-skel" aria-hidden="true">{[0, 1, 2, 3, 4, 5].map((j) => <td key={j} className={j === 5 ? "num" : undefined}><span /></td>)}</tr>)}</tbody>
+          </table>
+            {loading ? <div className="ex-pv-load" role="status"><span className="signin-spin" aria-hidden="true" /><span>Loading records…</span></div> : null}
+          </div>
+          {!loading && count > 5 ? <p className="muted" style={{ fontSize: ".82rem", marginTop: -8 }}>Showing the first 5. The file has all {count}, with every column.</p> : null}
         </>
       ) : null}
       {err ? <em className="err">{err}</em> : null}
       <p className="muted" style={{ fontSize: ".84rem" }}>Every export is recorded in the Activity Log.</p>
-      <div className="row"><button className="btn btn-lime" type="submit" disabled={!count}>⤓ Download .xlsx</button><button className="btn btn-ghost" type="button" data-close="1">Cancel</button></div>
+      <div className="row"><DownloadBtn disabled={!count} /><button className="btn btn-ghost" type="button" data-close="1" data-trace>Cancel</button></div>
     </form>
+  );
+}
+
+/* Download .xlsx (v5.77): hover border trace, and the ⤓ arrow dips down while hovered (off with reduced motion or when disabled) */
+function DownloadBtn({ disabled }: { disabled: boolean }) {
+  const arrow = useRef<HTMLSpanElement>(null);
+  const stop = useRef<(() => void) | null>(null);
+  const enter = () => {
+    if (disabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    stop.current?.();
+    stop.current = arrowDip(arrow.current!);
+  };
+  const leave = () => { stop.current?.(); stop.current = null; };
+  useEffect(() => () => stop.current?.(), []);
+  useEffect(() => { if (disabled) leave(); }, [disabled]);
+  return (
+    <button className="btn btn-lime" type="submit" disabled={disabled} data-trace onMouseEnter={enter} onMouseLeave={leave} onFocus={enter} onBlur={leave}>
+      <span ref={arrow} className="dl-arrow" aria-hidden="true">⤓</span> Download .xlsx
+    </button>
   );
 }

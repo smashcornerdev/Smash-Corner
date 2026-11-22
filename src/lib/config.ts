@@ -1,25 +1,10 @@
-/* Business rules and site constants (spec §15, §6, §9). Dummy values until the client confirms them. */
-export const BRANCH_ID = "qc";
-export const OPEN_HOUR = 7; // 7:00 AM
-export const CLOSE_HOUR = 22; // 10:00 PM (last slot 9–10 PM)
-export const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i);
-export const HOLD_MINUTES = 15; // cart hold
-export const CLAIM_HOURS = 2; // waitlist claim window
-export const PAY_HOURS = 24; // time to pay after approval
-export const REMIND_HOURS = 24; // reminder email before a confirmed booking starts
-export const TIMEZONE = "Asia/Manila";
+/* Business rules and site constants (spec §15, §6, §9). The fixed values live in supabase/functions/_shared/site.ts, shared with the Edge Functions. */
+import { DEFAULT_SENDER, SITE_INFO } from "../../supabase/functions/_shared/site";
+export { BRANCH_ID, OPEN_HOUR, CLOSE_HOUR, HOURS, HOLD_MINUTES, CLAIM_HOURS, PAY_HOURS, REMIND_HOURS, TIMEZONE } from "../../supabase/functions/_shared/site";
 
-export const SITE = {
-  name: "Smash Corner",
-  domain: "smashcorner-qc.com",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-  address: "Lorem Ipsum St., Quezon City",
-  phone: "(02) 8000 0000",
-  email: "hello@smashcorner-qc.com",
-  hours: "Daily, 7:00 AM – 10:00 PM",
-};
+export const SITE = { ...SITE_INFO, url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000" };
 
-export const SENDER = process.env.EMAIL_FROM || "Smash Corner <noreply@smashcorner-qc.com>";
+export const SENDER = process.env.EMAIL_FROM || DEFAULT_SENDER;
 
 export const CLOSURE_CATEGORIES = ["Maintenance", "Weather", "Private event", "Holiday", "Other"] as const;
 export const RENT_ITEM: Record<string, string> = { tennis: "racket", pickle: "paddle" }; // class rentals by court type

@@ -4,10 +4,12 @@ import { useState, type ReactNode } from "react";
 export type Row = { key: string; search: string; cells: ReactNode[] };
 
 /* Tables (spec §7, v4.44): search bar, first 10 rows + "View 10 more", scrolls with sticky headings */
-export default function DataTable({ head, rows, num = [], empty = "Nothing here right now.", noSearch }: { head: string[]; rows: Row[]; num?: number[]; empty?: string; noSearch?: boolean }) {
+/** `tools`: extra controls at the right end of the search row (v5.85: Court Bookings' Export icon on phones). With `tools`, the row is
+ *  there even when the table is too short for a search box or empty (it then holds just the tools). */
+export default function DataTable({ head, rows, num = [], empty = "Nothing here right now.", noSearch, tools }: { head: string[]; rows: Row[]; num?: number[]; empty?: string; noSearch?: boolean; tools?: ReactNode }) {
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(10);
-  if (!rows.length) return <div className="empty">{empty}</div>;
+  if (!rows.length) return tools ? <div className="tbl-block"><div className="tbl-tools only-tools">{tools}</div><div className="empty">{empty}</div></div> : <div className="empty">{empty}</div>;
   const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
   const hits = terms.length ? rows.filter((r) => terms.every((t) => r.search.toLowerCase().includes(t))) : rows;
   const vis = hits.slice(0, shown);
@@ -17,8 +19,9 @@ export default function DataTable({ head, rows, num = [], empty = "Nothing here 
         <div className="tbl-tools">
           <input className="inp tbl-q" type="search" placeholder="Search name, email, reference, court, date…" aria-label="Search this table" value={q} onChange={(e) => { setQ(e.target.value); setShown(10); }} />
           <span className="tbl-count">{terms.length ? `${hits.length} of ${rows.length}` : `${rows.length} rows`}</span>
+          {tools}
         </div>
-      ) : null}
+      ) : tools ? <div className="tbl-tools only-tools">{tools}</div> : null}
       <div className="tbl-wrap tbl-scroll">
         <table className="tbl">
           <thead><tr>{head.map((h, i) => <th key={h + i} className={num.includes(i) ? "num" : undefined}>{h}</th>)}</tr></thead>

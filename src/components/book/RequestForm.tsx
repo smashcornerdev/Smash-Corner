@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { submitRequestAction, type ActionResult } from "@/app/actions/booking";
+import { confettiBurst } from "@/lib/gsap/confetti";
 
 export default function RequestForm({ free }: { free: boolean }) {
   const [state, action, pending] = useActionState<ActionResult, FormData>(submitRequestAction, { ok: false });
@@ -27,7 +28,12 @@ export default function RequestForm({ free }: { free: boolean }) {
       </div>
       {state.error ? <em className="err">{state.error}</em> : null}
       <div className="row">
-        <button className="btn btn-lime" type="submit" disabled={pending}>{pending ? "Sending…" : "Send booking request"}</button>
+        {/* confetti (GSAP confettiBurst, v5.43) when the request is sent off; not when the policy box is still unticked, since
+            that click only shows an error. The pieces live on <body>, so they keep falling over the confirmation page */}
+        <button className="btn btn-lime no-edge" type="submit" disabled={pending}
+          onClick={(e) => { if (e.currentTarget.form?.querySelector<HTMLInputElement>("input[name=agree]")?.checked) confettiBurst(e.currentTarget); }}>
+          {pending ? "Sending…" : "Send booking request"}
+        </button>
         <Link href="/cart" className="btn btn-ghost">Back to cart</Link>
       </div>
     </form>

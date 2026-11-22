@@ -17,6 +17,8 @@ const fails = async (s, p, msg) => { try { await q(s, p); return false; } catch 
 await db.exec(mig);
 await db.exec(fs.readFileSync(`${root}/supabase/migrations/0003_waitlist_approval.sql`, "utf8"));
 await db.exec(fs.readFileSync(`${root}/supabase/migrations/0004_booking_reminders.sql`, "utf8"));
+await db.exec(fs.readFileSync(`${root}/supabase/migrations/0005_rental_items.sql`, "utf8"));
+await db.exec(fs.readFileSync(`${root}/supabase/migrations/0006_blacklist.sql`, "utf8"));
 await db.exec(seed);
 ok((await q("select count(*)::int n from courts")).rows[0].n === 3, "schema + seed load (3 courts)");
 

@@ -1,18 +1,13 @@
 import "server-only";
 import { BRANCH_ID, HOURS } from "./config";
 import { db, must } from "./supabase";
-import { closureCovers } from "./closures";
-import { addDaysKey, maxBookKey, slotStarted, todayKey } from "./time";
+import { LOCK_COLUMNS, stateOf, type LockRow, type SlotCtx, type SlotState } from "../../supabase/functions/_shared/slots";
+import { addDaysKey, maxBookKey, todayKey } from "./time";
 import { getInventory } from "./catalog";
 import type { ClassRow, Closure, Equipment } from "./types";
 
-/* Slot states shown in the time grid (spec §6 Step 3, §14) */
-export type SlotState = "past" | "closed" | "class" | "taken" | "reserved" | "cart" | "open";
-
-type LockRow = {
-  court_id: string; date: string; hour: number; booking_id: string | null; hold_id: string | null; waitlist_id: string | null;
-  holds: { session_id: string; expires_at: string } | null;
-};
+/* Slot states shown in the time grid (spec §6 Step 3, §14). The rules are shared with the tick Edge Function. */
+export type { SlotState } from "../../supabase/functions/_shared/slots";
 
 export async function getClosures(): Promise<Closure[]> {
   return must(await db().from("closures").select("*").eq("branch_id", BRANCH_ID)) as Closure[];
@@ -23,26 +18,11 @@ export async function getLiveClasses(from: string, to: string, courtId?: string)
   return must(await q) as ClassRow[];
 }
 async function getLocks(courtId: string, from: string, to: string): Promise<LockRow[]> {
-  return must(await db().from("slot_locks").select("court_id, date, hour, booking_id, hold_id, waitlist_id, holds(session_id, expires_at)")
+  return must(await db().from("slot_locks").select(LOCK_COLUMNS)
     .eq("court_id", courtId).gte("date", from).lte("date", to)) as unknown as LockRow[];
 }
 
-type Ctx = { closures: Closure[]; classes: ClassRow[]; locks: LockRow[]; session: string | null; claim: string | null };
-
-function stateOf(ctx: Ctx, courtId: string, date: string, h: number): SlotState {
-  if (slotStarted(date, h)) return "past";
-  if (ctx.closures.some((c) => closureCovers(c, courtId, date, h))) return "closed";
-  if (ctx.classes.some((k) => k.court_id === courtId && k.date === date && h >= k.start_hour && h < k.end_hour)) return "class";
-  const lock = ctx.locks.find((l) => l.date === date && l.hour === h);
-  if (!lock) return "open";
-  if (lock.booking_id) return "taken";
-  if (lock.hold_id) {
-    if (!lock.holds || new Date(lock.holds.expires_at).getTime() <= Date.now()) return "open"; // expired hold
-    return lock.holds.session_id === ctx.session ? "cart" : "reserved";
-  }
-  if (lock.waitlist_id) return lock.waitlist_id === ctx.claim ? "open" : "reserved";
-  return "open";
-}
+type Ctx = SlotCtx;
 
 async function context(courtId: string, from: string, to: string, session: string | null, claim: string | null): Promise<Ctx> {
   const [closures, classes, locks] = await Promise.all([getClosures(), getLiveClasses(from, to, courtId), getLocks(courtId, from, to)]);
@@ -70,6 +50,29 @@ export async function monthSummary(courtId: string, month: string, session: stri
     if (!bookable) { out.push({ date: d, open: 0, closed: false, bookable }); continue; }
     const st = HOURS.map((h) => stateOf(ctx, courtId, d, h));
     out.push({ date: d, open: st.filter((s) => s === "open").length, closed: st.every((s) => s === "closed" || s === "past"), bookable });
+  }
+  return out;
+}
+
+export type Avail = Record<string, Record<string, Record<number, SlotState>>>;
+/** court → date → hour → state for every court across the whole bookable window (today … max).
+    The Book page sends this with the page so the Date and Time steps open without loading (spec §6). */
+export async function bookWindow(courtIds: string[], session: string | null, claim: string | null = null): Promise<Avail> {
+  const from = todayKey(), to = maxBookKey();
+  const [closures, classes, locks] = await Promise.all([
+    getClosures(), getLiveClasses(from, to),
+    db().from("slot_locks").select(LOCK_COLUMNS)
+      .in("court_id", courtIds).gte("date", from).lte("date", to).then((r) => must(r) as unknown as LockRow[]),
+  ]);
+  const ctx: Ctx = { closures, classes, locks, session, claim };
+  const out: Avail = {};
+  for (const c of courtIds) {
+    out[c] = {};
+    for (let d = from; d <= to; d = addDaysKey(d, 1)) {
+      const day: Record<number, SlotState> = {};
+      for (const h of HOURS) day[h] = stateOf(ctx, c, d, h);
+      out[c][d] = day;
+    }
   }
   return out;
 }

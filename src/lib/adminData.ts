@@ -15,6 +15,16 @@ export async function listBookings(f: { status?: RequestStatus; date?: string; f
   return must(await q.order("created_at", { ascending: false }).order("date", { ascending: false }).limit(2000)) as BookingRow[];
 }
 
+/** every booking played in a date range, read 1,000 at a time so a long Reports range is never cut off */
+export async function listAllBookingsInRange(from: string, to: string): Promise<BookingRow[]> {
+  const out: BookingRow[] = [], size = 1000;
+  for (let start = 0; ; start += size) {
+    const page = must(await db().from("bookings").select("*, orders(*)").eq("branch_id", BRANCH_ID).gte("date", from).lte("date", to).order("date").order("id").range(start, start + size - 1)) as BookingRow[];
+    out.push(...page);
+    if (page.length < size) return out;
+  }
+}
+
 /** open-stage bookings grouped by order: one approval per order (spec §7 Orders) */
 export function groupByOrder(l: BookingRow[]): BookingRow[][] {
   const m = new Map<string, BookingRow[]>();

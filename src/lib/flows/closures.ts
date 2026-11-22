@@ -7,6 +7,7 @@ import { logAction } from "../log";
 import { fmtDate, todayKey } from "../time";
 import { courtById, getCourts } from "../catalog";
 import { mailClosureCancelled, mailWaitlistClosed } from "../email/messages";
+import { unrecord } from "../sheets";
 import type { Admin, Booking, Closure, WaitlistEntry } from "../types";
 
 /* Closures (spec §7): closed hours can't be booked; bookings already there are cancelled with a full refund. */
@@ -46,6 +47,7 @@ export async function applyClosure(admin: Admin, c: ClosureDraft): Promise<{ can
   const holds = must(await db().from("holds").select("id, court_id, date, hours").in("court_id", c.court_ids).gte("date", c.starts_on)) as { id: string; court_id: string; date: string; hours: number[] }[];
   const hit = holds.filter((h) => h.hours.some((x) => closureCovers(created, h.court_id, h.date, x))).map((h) => h.id);
   if (hit.length) await db().from("holds").delete().in("id", hit);
+  await unrecord("court", bookings.filter((b) => b.status === "approved").map((b) => b.ref));
   const courts = await getCourts();
   const names = c.court_ids.length === courts.length ? "All courts" : c.court_ids.map((id) => courts.find((x) => x.id === id)?.name ?? id).join(", ");
   await logAction(admin, "Closed courts", names, `${closureDatesText(created, fmtDate)} · ${label}${bookings.length ? ` · ${bookings.length} booking(s) cancelled` : ""}`);

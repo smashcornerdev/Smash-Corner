@@ -13,7 +13,8 @@ export const env = {
   supabaseServiceKey: () => process.env.SUPABASE_SECRET_KEY || need("SUPABASE_SERVICE_ROLE_KEY"),
   resendKey: () => need("RESEND_API_KEY"),
   payLinkSecret: () => need("LINK_SECRET"),
-  cronSecret: () => need("CRON_SECRET"),
+  /** shared with the record-to-sheets Edge Function; empty = Google Sheets recording is off */
+  sheetsSecret: () => process.env.SHEETS_SECRET?.trim() || "",
   /** where contact-form messages go */
   contactInbox: () => process.env.CONTACT_INBOX || "hello@smashcorner-qc.com",
   /** "true" = log emails to the console instead of sending (local development) */

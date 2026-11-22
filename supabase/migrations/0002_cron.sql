@@ -1,27 +1,31 @@
--- Smash Corner · scheduled job (spec §18): every minute, call the app's /api/cron/tick.
--- Run AFTER deploying the site. Replace the two placeholders first:
---   <SITE_URL>     e.g. https://smashcorner-qc.com   (staging: https://staging.smashcorner-qc.com)
---   <CRON_SECRET>  the same value as CRON_SECRET in the app's environment
--- The secret is kept in Supabase Vault, not in the job text.
+-- Smash Corner · every-minute job (spec §18 Scheduled jobs): call the tick Supabase Edge Function (supabase/functions/tick).
+-- Run AFTER deploying the function (supabase functions deploy tick --no-verify-jwt) and setting its secrets.
+-- Replace the two placeholders first:
+--   <PROJECT_REF>  the Supabase project ref, e.g. abcdefghijklmnop (from https://<PROJECT_REF>.supabase.co)
+--   <CRON_SECRET>  the same value as the CRON_SECRET Edge Function secret
+-- The secret is kept in Supabase Vault, not in the job text. Safe to run again: it replaces the secrets and the job, so it
+-- also moves an older setup (which called the website's /api/cron/tick) over to the Edge Function.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+delete from vault.secrets where name in ('smashcorner_cron_secret', 'smashcorner_tick_url', 'smashcorner_site_url');
 select vault.create_secret('<CRON_SECRET>', 'smashcorner_cron_secret');
-select vault.create_secret('<SITE_URL>', 'smashcorner_site_url');
+select vault.create_secret('https://<PROJECT_REF>.supabase.co/functions/v1/tick', 'smashcorner_tick_url');
 
+select cron.unschedule(jobid) from cron.job where jobname = 'smashcorner-tick';
 select cron.schedule(
   'smashcorner-tick',
   '* * * * *',
   $$
   select net.http_post(
-    url := (select decrypted_secret from vault.decrypted_secrets where name = 'smashcorner_site_url') || '/api/cron/tick',
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'smashcorner_tick_url'),
     headers := jsonb_build_object(
       'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'smashcorner_cron_secret'),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb,
-    timeout_milliseconds := 50000
+    timeout_milliseconds := 55000
   );
   $$
 );

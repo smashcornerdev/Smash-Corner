@@ -118,6 +118,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .btn-text{background:none;color:var(--fg);text-decoration:underline;text-underline-offset:3px}
 .btn-text:hover{background:var(--surface-raised)}
 .btn-danger{background:var(--bad);color:var(--bg)}
+/* Reject (v5.73): hovering changes nothing but the border trace; as a link it would otherwise pick up the purple a:hover text */
+.btn-danger:hover{background:var(--bad);color:var(--bg)}
 .btn-ok{background:var(--ok);color:var(--ink)}
 .btn-sm{font-size:.84rem;padding:.6em 1em;clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)}
 .btn[disabled],.btn[disabled]:hover{background:var(--surface-raised);color:var(--text-disabled);box-shadow:none;cursor:not-allowed;transform:none}
@@ -169,15 +171,37 @@ button,input,select,textarea{font:inherit;color:inherit}
 .menu-btn[aria-expanded=true] .burger i:nth-child(1){top:6.75px;transform:rotate(45deg)}
 .menu-btn[aria-expanded=true] .burger i:nth-child(2){opacity:0}
 .menu-btn[aria-expanded=true] .burger i:nth-child(3){top:6.75px;transform:rotate(-45deg)}
-@media (prefers-reduced-motion:reduce){.burger i{transition:none}}
+/* ☰ ↔ ✕ morph: !important + extra specificity exempts it from the site-wide "no animations" switch (spec §4, v5.12) */
+.menu-btn .burger i{transition:transform .35s cubic-bezier(.65,0,.35,1),opacity .2s ease,top .35s cubic-bezier(.65,0,.35,1)!important}
+@media (prefers-reduced-motion:reduce){.menu-btn .burger i{transition:none!important}}
 @media (max-width:1100px){
-  .main-nav{display:none;position:absolute;left:0;right:0;top:100%;background:var(--bg);border-bottom:1px solid var(--line);flex-direction:column;padding:8px clamp(16px,4vw,40px) 16px}
+  /* full-screen menu (v5.15): fills the screen behind the header bar (z-index -1 inside the header's stacking context), so the
+     logo, cart, Book and ✕ stay on top; the links start just below the bar */
+  .main-nav{display:none;position:fixed;inset:0;height:100dvh;z-index:-1;background:var(--bg);flex-direction:column;flex-wrap:nowrap;gap:0;margin:0;overflow-y:auto;overscroll-behavior:contain;padding:calc(var(--head-h) + 3px + 12px) clamp(16px,4vw,40px) 32px}
   .main-nav.open{display:flex}
   .main-nav a{padding:.7em 0;font-size:1rem;border-bottom:1px solid var(--line)}
+  /* lock the page behind the menu at the root only; body goes back to visible, or (with its overflow-x:hidden) it would turn into
+     its own scroll box and the sticky header would scroll away */
+  html.menu-on{overflow:hidden}html.menu-on body{overflow:visible}
   .menu-btn{display:grid}
   .head-actions{margin-left:auto}
 }
-@media (max-width:420px){.head-actions .btn{display:none}}
+/* Cart and Book live inside the phone menu (v5.17): the header bar keeps only the logo and ☰, which shows the cart count */
+.nav-extra{display:none}
+.menu-btn{position:relative}
+@media (max-width:1100px){
+  .head-actions .cart-btn,.head-actions>.btn{display:none}
+  /* one row: Book Now filling the row, shopping-bag cart button (with count) on its right (v5.21; was on the left in v5.19) */
+  .nav-extra{display:flex;align-items:stretch;gap:10px;margin-top:24px}
+  .main-nav .nav-cart{position:relative;flex:0 0 auto;display:grid;place-items:center;width:58px;padding:0;border:0;border-radius:12px;background:var(--surface-2);color:var(--fg);text-decoration:none;font-size:1.4rem}
+  .main-nav .nav-cart:hover,.main-nav .nav-cart.on{background:var(--surface-raised);color:var(--accent);box-shadow:none}
+  .nav-cart svg{width:1em;height:1em}
+  .nav-cart .cart-count{top:4px;right:4px;font-family:var(--body);font-size:.7rem;letter-spacing:0}
+  /* the Book button opts out of the menu-link look (.main-nav a: flat, underlined row, grey hover) */
+  .main-nav .nav-extra .btn{flex:1;min-width:0;font-size:1.2rem;padding:.9em 1.5em;border:0;border-radius:12px}
+  .main-nav .nav-extra .btn-lime{color:var(--ink)}
+  .main-nav .nav-extra .btn-lime:hover{background:var(--lime-d);color:var(--ink)}
+}
 
 /* ---------- Hero ---------- */
 .hero-band{background:var(--bg)}
@@ -185,10 +209,6 @@ button,input,select,textarea{font:inherit;color:inherit}
 .hero h1 .ln{display:block}
 .hero h1 .ln.l{color:var(--accent)}
 .hero .lead{margin-top:20px}
-.hero-cta{margin-top:28px}
-.quick{margin-top:30px;display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;max-width:560px}
-.quick>*{min-width:0}
-@media (max-width:520px){.quick{grid-template-columns:1fr}}
 
 .ticker{background:var(--brand-violet);color:var(--fg);overflow:hidden;border-block:1px solid var(--line)}
 .ticker-track span:nth-child(odd){color:var(--brand-lavender)}
@@ -226,8 +246,7 @@ textarea.inp{min-height:96px;resize:vertical}
 .court-card .meta{display:flex;justify-content:space-between;gap:12px;font-size:.88rem;color:var(--muted)}
 .court-card .price{font-family:var(--display);color:var(--accent);font-size:1.1rem}
 .court-card .btn{margin-top:auto;align-self:flex-start}
-.feat{display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--brand-lavender)}
-.feat:nth-child(even){border-top-color:var(--brand-olive)}
+.feat{display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--surface);border:1px solid var(--line)}
 .feat .ic{width:44px;height:44px;color:var(--brand-lavender)}
 .feat:nth-child(even) .ic{color:var(--brand-olive)}
 .quote{padding:26px;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;gap:16px}
@@ -247,6 +266,7 @@ textarea.inp{min-height:96px;resize:vertical}
 .cta-band p{max-width:46ch}
 .person .ph{aspect-ratio:1}
 .person h3{margin-top:14px}
+.person h3:first-child{margin-top:0}
 .value{padding:24px;border:2px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .value .num{font-family:var(--display);color:var(--accent-2);font-size:.85rem}
 .spec{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:.9rem}
@@ -322,9 +342,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 
 /* Toasts */
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(440px,calc(100% - 32px));pointer-events:none}
-.toast{background:var(--surface-raised);color:var(--fg);padding:12px 16px;font-weight:500;font-size:.9rem;border-left:6px solid var(--accent);animation:pop .25s ease;width:100%;pointer-events:auto}
-.toast.warn{border-left-color:var(--error)}
-.toast.lav{border-left-color:var(--accent-2)}
+.toast{background:var(--surface-raised);color:var(--fg);padding:12px 16px;font-weight:500;font-size:.9rem;animation:pop .25s ease;width:100%;pointer-events:auto}
+.toast.warn{border-left:6px solid var(--error)}
 
 
 /* ---------- Footer ---------- */
@@ -342,6 +361,20 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 /* ---------- Booking ---------- */
 .page-top{padding-block:clamp(32px,5vw,56px) 8px}
 .page-top .lead{margin-top:14px}
+.page-top h1 .ln{display:block} /* the title slides in from the left inside this (entrance, spec §4) */
+/* things that slide in from the right (intro paragraphs, v5.28) wait just off the edge; clip them at the content area so phones
+   can't pan sideways to them. clip (not hidden) doesn't make main a scroll box, so nothing sticky breaks */
+#main{overflow-x:clip}
+/* Contact FAQ (FaqList.tsx, v5.27, v5.46): own chevron instead of the browser marker; GSAP turns it as the answer slides open/closed (the CSS transition below is overridden by the global no-animation rule; the [open] rule is the no-JS fallback).
+   !important + specificity: exempt from the site-wide "no animations" switch */
+.faq summary{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;cursor:pointer;font-weight:600;list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:hover{color:var(--accent)}
+.faq .faq-chev{flex-shrink:0;width:10px;height:10px;margin-right:4px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-3px) rotate(45deg);transition:transform .35s cubic-bezier(.4,0,.2,1)!important}
+.faq[open]:not([data-state=closing]) .faq-chev{transform:translateY(2px) rotate(-135deg)}
+.faq .faq-a{overflow:hidden}
+.faq .faq-a p{padding:0 18px 18px}
+@media (prefers-reduced-motion:reduce){.faq .faq-chev{transition:none!important}}
 .stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-block:28px 8px;counter-reset:st}
 .stepper button{background:var(--surface-2);border:0;color:var(--muted);padding:12px 12px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;font-size:.82rem;position:relative;overflow:hidden}
 .stepper button::after{content:"";position:absolute;left:0;bottom:0;height:4px;width:0;background:var(--brand-olive);transition:width .4s ease}
@@ -400,6 +433,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 .cal-day.sel .av{color:var(--brand-lime)}
 .cal-day.rng{background:var(--surface);border-color:var(--brand-lavender);color:var(--brand-lavender)}
 .cal-day.rng .av{color:var(--brand-lavender)}
+/* v5.13: the date step shows only the date; full and closed days are told apart by shade alone */
+.cal-day.full:not(.sel){background:color-mix(in srgb,var(--bad) 22%,var(--bg));border:2px solid color-mix(in srgb,var(--bad) 45%,var(--bg));color:color-mix(in srgb,var(--fg) 70%,transparent)}
+.cal-day.full:not(.sel):hover{background:color-mix(in srgb,var(--bad) 32%,var(--bg));border-color:var(--bad)}
+.legend i.f{background:color-mix(in srgb,var(--bad) 22%,var(--bg));box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--bad) 45%,var(--bg))}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .slot{background:var(--surface);border:2px solid var(--line-strong);color:var(--fg);padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;font-size:.88rem;min-height:66px}
 .slot b{font-weight:600}
@@ -416,7 +453,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 .slot.cart small{color:var(--brand-lavender)}
 .slot.info{cursor:default}
 .slot.info:hover{border-color:transparent}
-.tp-hint{background:var(--surface-2);border-left:4px solid var(--brand-lavender);padding:12px 14px;font-size:.92rem;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.tp-hint{background:var(--surface-2);padding:12px 14px;font-size:.92rem;overflow:hidden}
+.tp-in{display:flex;flex-wrap:wrap;align-items:center;gap:8px} /* the hint's content, animated on its own when it changes (v5.36) */
 .tp-step{display:inline-grid;place-items:center;width:24px;height:24px;background:var(--brand-lavender);color:var(--on-accent);font-weight:700;font-size:.8rem}
 .slot.endpick{border-color:var(--accent-2)}
 .slot.endpick.is-start,.slot.endpick.rng{background:var(--brand-violet);color:var(--fg);border-color:var(--brand-lime)}
@@ -425,7 +463,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 .slot.dim{color:var(--text-disabled);border-style:dashed;border-color:var(--border)}
 .slot.dim small{color:var(--text-disabled)}
 .blocks{display:flex;flex-direction:column;gap:8px}
-.block{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;background:var(--brand-violet);border:2px solid var(--brand-lime);padding:12px 14px}
+.block{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--brand-violet);border:2px solid var(--brand-lime);padding:12px 52px 12px 14px}
+/* remove (✕) in the card's top-right corner (v5.16; was a "Remove" text link) */
+.block-x{position:absolute;top:6px;right:6px;width:30px;height:30px;display:grid;place-items:center;padding:0;background:transparent;color:var(--fg)}
+.block-x:hover{background:color-mix(in srgb,var(--fg) 14%,transparent);color:var(--brand-lime)}
+.block-x svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;stroke-linecap:round;fill:none}
 .block .bn{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 @media (max-width:480px){.block{grid-template-columns:1fr auto}.block .bn{grid-column:1/-1}}
 .slot.past{background:var(--surface);border:2px dashed var(--border);color:var(--text-disabled);cursor:not-allowed}
@@ -442,8 +484,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 .qty button{width:36px;height:36px;border:0;background:var(--surface);color:var(--fg);cursor:pointer;font-size:1.1rem}
 .qty button:hover{background:var(--surface-raised);color:var(--brand-lavender)}
 .qty output{min-width:40px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
-.banner{padding:12px 16px;background:var(--surface-2);border-left:4px solid var(--lav);font-size:.9rem}
-.banner.lime{border-left-color:var(--accent)}
+/* notes: plain grey box, no purple left edge (v5.71); only error notes keep a red edge */
+.banner{padding:12px 16px;background:var(--surface-2);font-size:.9rem}
+.banner.err{border-left:4px solid var(--error)}
 .cart-item{display:grid;grid-template-columns:120px 1fr auto;gap:18px;background:var(--surface);border:1px solid var(--line);padding:16px;align-items:start}
 .cart-item>*{min-width:0}
 .cart-item .ph{aspect-ratio:1}
@@ -497,6 +540,11 @@ body.pm-dragging .pm-card:not(.dragging){border-style:dashed}
 .pill.rejected,.pill.cancelled,.pill.declined{background:transparent;color:var(--error);box-shadow:inset 0 0 0 2px var(--error)}
 .pill.waiting{background:var(--brand-chartreuse);color:var(--on-accent)}
 .pill.notified{background:var(--brand-violet);color:var(--brand-lavender);box-shadow:inset 0 0 0 2px var(--brand-lavender)}
+/* blacklist (spec §7, v6.13): the pill on a matching request, and the separate Blacklisted group on Court Bookings → Requests */
+.pill.bl{background:color-mix(in srgb,var(--error) 18%,transparent);color:var(--error);box-shadow:inset 0 0 0 2px var(--error);white-space:normal}
+.bl-group{display:flex;flex-direction:column;gap:10px;margin-top:28px;padding:16px;border:2px solid color-mix(in srgb,var(--error) 55%,transparent);border-radius:var(--r,14px);background:color-mix(in srgb,var(--error) 6%,transparent)}
+.bl-group h3{margin:0;display:flex;align-items:center;gap:10px;color:var(--error);font-size:1.1rem}
+.bl-group h3 .c{font-size:.75rem;background:var(--error);color:var(--bg);padding:.1em .6em;border-radius:9px;font-variant-numeric:tabular-nums}
 .pill.claimed{background:var(--brand-lime);color:var(--on-accent)}
 .pill.expired,.pill.removed,.pill.unpaid{background:var(--surface-2);color:var(--muted)}
 .pill.edited{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 2px var(--muted)}
@@ -512,6 +560,12 @@ body.pm-dragging .pm-card:not(.dragging){border-style:dashed}
 .mode-sw button:hover{color:var(--fg)}
 .mode-sw button.on{background:var(--brand-violet);color:var(--fg)}
 .mode-sw .c{background:var(--brand-lavender);color:var(--on-accent);font-size:.72rem;font-weight:700;padding:.1em .5em}
+/* sliding pill behind the active tab once JavaScript has placed it (v5.35); without it the active tab is simply violet */
+.mode-sw{position:relative}
+.mode-sw button{position:relative;z-index:1;transition:color .25s}
+.mode-sw-pill{position:absolute;top:0;left:0;width:0;height:0;background:var(--brand-violet);border-radius:999px;visibility:hidden}
+.mode-sw.ready .mode-sw-pill{visibility:visible}
+.mode-sw.ready button.on{background:transparent}
 .cls-list{display:flex;flex-direction:column;gap:10px}
 .cls-card{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;text-align:left;background:var(--surface);border:2px solid var(--line);color:var(--fg);padding:14px 16px;cursor:pointer;font:inherit;width:100%}
 .cls-card:hover:not(:disabled){border-color:var(--accent-2)}
@@ -534,7 +588,7 @@ body.admin-mode .site-head,body.admin-mode .site-foot{display:none}
 .adm>*{min-width:0}
 .adm-side{background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow:auto}
 .adm-side nav{display:flex;flex-direction:column;gap:2px}
-.subnav{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.subnav{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 .subnav button{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);padding:.7em 1em;font:inherit;font-weight:600;font-size:.92rem;cursor:pointer;white-space:nowrap;display:inline-flex;gap:8px;align-items:center}
 .subnav button:hover{color:var(--fg)}
 .subnav button.on{color:var(--accent);border-bottom-color:var(--accent)}
@@ -546,7 +600,7 @@ body.admin-mode .site-head,body.admin-mode .site-foot{display:none}
 .adm-side nav button .c{font-size:.72rem;background:var(--surface-2);color:var(--fg);padding:0 7px;border-radius:9px;font-variant-numeric:tabular-nums}
 .adm-side nav button.on .c{background:var(--brand-lavender);color:var(--on-accent)}
 .adm-brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.adm-panel{display:flex;flex-direction:column;gap:18px;flex:1;min-height:0}
+.adm-panel{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0}
 /* hamburger menus: a navbar that would need sideways scrolling on a phone collapses into a ☰ button + dropdown */
 .hm{position:relative}
 .adm-side.hm{position:sticky}
@@ -561,7 +615,7 @@ body.admin-mode .site-head,body.admin-mode .site-foot{display:none}
 .ah-l{transform:scaleX(-1)}
 .ah-d{transform:rotate(90deg)}
 .ah-u{transform:rotate(-90deg)}
-.hm.open .hm-car{transform:rotate(180deg)}
+.hm.open .hm-car,.hm-btn[aria-expanded=true] .hm-car{transform:rotate(180deg)} /* the ▾ flips as soon as it's tapped (v5.82) */
 .gal-list{display:flex;gap:6px}
 @media (max-width:700px){
   .hm-sub .hm-btn{display:flex}
@@ -571,7 +625,32 @@ body.admin-mode .site-head,body.admin-mode .site-foot{display:none}
   .hm-sub .hm-list button.on{background:var(--brand-violet);color:var(--fg)}
   :root{--gt:62px}
   .gal-tabs .wrap{overflow:visible;padding-block:8px}
-  .gal-hm{width:100%}
+  /* section tab menu, compact (v5.80): a small button on the right (current tab + ▾ only, sized to its text); the list opens under it, right-aligned */
+  .hm-sub{justify-self:end;max-width:100%}
+  .hm-sub .hm-btn{width:auto;max-width:100%;gap:8px;padding:.5em .85em;font-size:.88rem}
+  .hm-sub .hm-cur{flex:0 1 auto}
+  .hm-sub .hm-car{color:var(--accent)}
+  .hm-sub .hm-list{left:auto;right:0;width:max-content;min-width:220px;max-width:calc(100vw - 32px)}
+  /* Court Bookings (v5.82; was a 4 × 2 grid of tab buttons in v5.81) Classes & Events (v5.95) and Management (v5.97): the dropdown sits on the left, and its button has the page's
+     background with a lavender outline; the list opens under it, left-aligned */
+  .hm-sub.hm-court{justify-self:start}
+  .hm-sub.hm-court .hm-btn{background:var(--bg);border:2px solid var(--brand-lavender)}
+  .hm-sub.hm-court .hm-list{left:0;right:auto}
+  /* Export to Excel (v5.81): just a download icon, top right, on the title's row */
+  /* phones (v5.83): the title gets its own row; the tab dropdown and the Export icon share the row under it, icon on the right */
+  .adm .adm-top{row-gap:16px;align-items:center}
+  .adm .adm-top>h1{grid-column:1/-1}
+  .adm .adm-top>.adm-exp{grid-row:2}
+  .adm .adm-top>.hm-sub{grid-column:1;grid-row:2}
+  /* Court Bookings (v5.85) and Classes & Events (v5.95): the Export icon moves from the head to the right end of the table's search row */
+  .adm .adm-top>.adm-exp.exp-court{display:none}
+  .adm .tbl-exp{display:flex;flex:0 0 auto;margin-left:auto}
+  .adm .ctl-acts .tbl-exp{margin-left:0} /* Registration Controls (v5.96): right beside + Open registration */
+  .adm .tbl-tools.only-tools{display:flex;justify-content:flex-end}
+  .adm .tbl-tools:has(.tbl-exp){flex-wrap:nowrap}
+  .adm .tbl-tools:has(.tbl-exp) .tbl-q{flex:1 1 0;min-width:0}
+  .exp-btn.btn{flex:0 0 auto;width:44px;height:44px;padding:0;font-size:1.35rem;letter-spacing:0}
+  .exp-btn .exp-txt{display:none}
 }
 .adm-who{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:8px;margin-top:auto}
 .adm-who b{color:var(--fg);font-weight:600}
@@ -624,6 +703,9 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .tbl-more{display:flex;flex-direction:column;align-items:center;gap:6px}
 .tbl-more:empty{display:none}
 .modal .tbl-scroll{max-height:min(420px,55vh)}
+/* Dashboard booking card (v5.70): the booking page's panels become sections split by a line */
+.modal .bd-sec{gap:14px}
+.modal .bd-sec+.bd-sec{border-top:1px solid var(--line);padding-top:18px}
 /* customer account details (Phase 2): tables keep their full height and scroll sideways instead of squashing or widening the dialog */
 .cust-modal{min-width:0}
 .cust-modal>*{flex-shrink:0;min-width:0}
@@ -658,7 +740,6 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .promo-on{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:2px dashed var(--brand-lime);border-radius:var(--r-sm);font-size:.88rem;margin-top:4px}
 .promo-code{font-family:var(--sport);letter-spacing:.08em}
 /* memberships (Phase 2) */
-.banner.lav{border-left-color:var(--brand-lavender)}
 .plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .pick.plan .b{gap:6px;padding:16px}
 .pick.plan:disabled{cursor:not-allowed;color:var(--muted)}
@@ -668,15 +749,29 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .adm-branch select.inp{font-size:.88rem;letter-spacing:0;text-transform:none;font-weight:600;padding:.55em .7em}
 .adm-main{padding:clamp(20px,3vw,36px) clamp(16px,3vw,40px) 120px;display:flex;flex-direction:column;gap:24px}
 .adm-main h1{font-size:clamp(1.3rem,2.6vw,1.9rem)}
-.adm-top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+/* page head (v5.83): title + Export on the first row, the section tabs across the full width under them */
+.adm-top{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:24px;align-items:end}
+.adm-top>*{min-width:0}
+.adm-top>h1{grid-column:1;grid-row:1}
+.adm-top>.adm-exp{grid-column:2;grid-row:1}
+.adm-top>.hm-sub{grid-column:1/-1}
+.tbl-exp{display:none} /* phones only (v5.84) */
+.tbl-tools.only-tools{display:none} /* a search row holding only the phone Export icon (v5.85): hidden on wider screens */
+/* the admin ☰ only shows below 860 px (the site header's shows below 1100 px) */
+.adm .menu-btn{display:none}
 @media (max-width:860px){
-  .adm{grid-template-columns:1fr}
-  .adm-side{position:sticky;top:0;z-index:40;height:auto;padding:10px 16px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
-  .adm-side .hm-btn{display:flex;flex:1;max-width:280px}
-  .adm-panel{display:none;position:absolute;left:0;right:0;top:100%;background:var(--surface);border-bottom:1px solid var(--line);padding:10px 16px 16px;box-shadow:0 18px 30px var(--shadow);max-height:calc(100svh - 70px);overflow:auto}
-  .adm-side.open .adm-panel{display:flex}
-  .adm-side nav button{padding:.8em .9em}
-  .adm-who{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:0}
+  .adm{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  /* top bar like the public site header: logo + ☰ only (v5.69) */
+  .adm-side{position:sticky;top:0;z-index:40;height:auto;min-height:var(--head-h);justify-content:center;padding:0 clamp(16px,4vw,40px);background:var(--bg);border-right:0;border-bottom:3px solid var(--brand-olive);overflow:visible}
+  .adm .menu-btn{display:grid}
+  /* full-screen menu behind the bar (z-index -1 in the bar's stacking context), same look as the site's phone menu */
+  .adm .adm-side .adm-panel{display:none;position:fixed;inset:0;height:100dvh;z-index:-1;background:var(--bg);flex:none;gap:0;overflow-y:auto;overscroll-behavior:contain;padding:calc(var(--head-h) + 3px + 12px) clamp(16px,4vw,40px) 32px}
+  .adm .adm-side.open .adm-panel{display:flex}
+  .adm .adm-side nav .adm-nav{border-radius:0;padding:.75em .8em;border-bottom:1px solid var(--line);font-family:var(--sport);font-weight:700;font-size:clamp(1.5rem,6.5vw,2.1rem);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+  .adm .adm-side nav .adm-nav:hover{background:none;color:var(--accent)}
+  .adm .adm-side nav .adm-nav.on{background:none;color:var(--accent);box-shadow:inset 4px 0 0 var(--brand-chartreuse)}
+  .adm .adm-side nav .adm-nav .c{font-family:var(--body);font-size:.8rem;letter-spacing:0;padding:2px 9px;border-radius:11px}
+  .adm .adm-who{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:24px;border-top:0}
 }
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .stats>*{min-width:0}
@@ -698,6 +793,12 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .cal .bk:focus-visible{outline:2px solid var(--fg)}
 /* Reports */
 .rep-filters{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center}
+.rep-custom{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.rep-custom label.f{flex:0 1 180px}
+/* Reports loading skeleton (spec §19, v6.16): the cards, rows and chart space their own bars */
+.rep-skel .kpi .skel+.skel,.rep-skel .hrow .skel+.skel,.rep-skel .chart-card .skel+.skel,.rep-skel-chart .skel+.skel{margin-top:0}
+.rep-skel-chart{display:flex;align-items:flex-end;gap:6px;height:200px;border-bottom:1px solid var(--line)}
+.rep-skel-chart .skel{flex:1;min-width:0;border-radius:4px 4px 0 0}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kpis>*{min-width:0}
 @media (max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}}
@@ -705,6 +806,16 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .kpi small{color:var(--muted);font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
 .kpi b{font-family:var(--display);font-size:clamp(1.1rem,2.2vw,1.55rem);color:var(--fg);overflow-wrap:anywhere}
 .kpi .delta{font-size:.76rem;color:var(--muted)}
+/* animated KPI numbers: tabular digits so counting doesn't wobble; the hidden final value holds the width (countUp) */
+.kpi b{font-variant-numeric:tabular-nums}
+.kv{display:inline-grid}
+.kv>.kv-ghost,.kv>.kv-live{grid-area:1/1}
+.kv-ghost{visibility:hidden}
+/* odometer (digitRoll): each digit is a one-digit window over a 0–9 strip */
+.roll{display:inline-flex;align-items:flex-start}
+.digit-win{display:inline-block;height:1.1em;overflow:hidden}
+.digit-strip{display:block}
+.digit-strip>span{display:block;height:1.1em;line-height:1.1em;text-align:center}
 .kpi .good{color:var(--brand-lime)}
 .kpi .bad{color:var(--bad)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -712,7 +823,11 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .chart-card h3{font-size:.95rem}
 .chart-card svg{width:100%;height:auto;display:block;overflow:visible}
 .chart-scroll{overflow-x:auto}
-.chart-scroll svg{min-width:520px}
+.chart-scroll .chart-inner{min-width:520px}
+.chart-x{position:relative;height:22px;margin-top:6px}
+.chart-x span{position:absolute;top:0;transform:translateX(-50%);color:var(--muted);font-size:11px;font-family:var(--body);font-variant-numeric:tabular-nums;white-space:nowrap}
+.chart-x span.first{transform:none;left:0!important}
+.chart-x span.last{transform:translateX(-100%);left:100%!important}
 .chart-card svg text{fill:var(--muted);font-size:11px;font-family:var(--body);font-variant-numeric:tabular-nums}
 .chart-card svg .grid{stroke:var(--line);stroke-width:1}
 .chart-card svg .grid.base{stroke:var(--muted)}
@@ -720,6 +835,19 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .chart-card svg .hit{fill:transparent;cursor:pointer;outline:none}
 .chart-card svg .col:hover .bar,.chart-card svg .col:focus-within .bar{fill:var(--fg)}
 .chart-card svg .col:focus-within .hit{stroke:var(--focus);stroke-width:2}
+/* Reports bar chart: HTML bars that GSAP grows from 0 (barChartGrow); reduced motion shows them at full height */
+.chart{display:flex;align-items:flex-end;height:200px;border-bottom:1px solid var(--muted)}
+.chart .bar-col{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;background:none;border:0;padding:0;cursor:pointer;outline:none}
+.chart .bar-fill{display:block;width:70%;height:0;background:var(--brand-lavender)}
+.chart .bar-col:hover .bar-fill,.chart .bar-col.on .bar-fill{background:var(--fg)}
+.chart .bar-col:focus-visible{box-shadow:inset 0 0 0 2px var(--focus)}
+.bar-detail{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden} /* hidden: clips the slide open/shut */
+.bar-detail h4{font-size:.95rem}
+.bar-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0}
+.bar-stats div{background:var(--surface-2);padding:10px 12px}
+.bar-stats dt{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.bar-stats dd{margin:4px 0 0;font-weight:700;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.chart .bar-fill{height:var(--h)}}
 .hbars{display:flex;flex-direction:column;gap:14px;margin-top:4px}
 .hrow{display:grid;grid-template-columns:minmax(0,130px) 1fr 56px;gap:12px;align-items:center;font-size:.88rem;cursor:default;outline:none}
 .hrow:focus-visible{outline:2px solid var(--focus);outline-offset:4px}
@@ -730,18 +858,42 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .tbl tr.tot td{border-top:2px solid var(--muted);font-weight:600}
 #tip{position:fixed;z-index:300;display:none;background:var(--surface-raised);color:var(--fg);border:1px solid var(--line);padding:8px 10px;font-size:.8rem;line-height:1.45;pointer-events:none;max-width:260px;box-shadow:0 6px 20px var(--shadow)}
 .chip.on{background:var(--brand-lavender);color:var(--on-accent);border-color:var(--brand-lavender)}
-.fc-wrap{background:var(--surface);border:1px solid var(--line);padding:clamp(10px,2vw,18px);overflow-x:auto;
+.fc-wrap{background:var(--surface);border:1px solid var(--line);padding:clamp(10px,2vw,18px);
   --fc-border-color:var(--line);--fc-page-bg-color:var(--surface);--fc-neutral-bg-color:var(--surface-2);--fc-neutral-text-color:var(--muted);
   --fc-list-event-hover-bg-color:var(--surface-2);--fc-today-bg-color:var(--surface-raised);--fc-now-indicator-color:var(--error);
   --fc-button-bg-color:var(--surface-2);--fc-button-border-color:var(--line);--fc-button-text-color:var(--fg);
   --fc-button-hover-bg-color:var(--line);--fc-button-hover-border-color:var(--line);
   --fc-button-active-bg-color:var(--brand-violet);--fc-button-active-border-color:var(--brand-lavender);--fc-event-border-color:transparent}
-.fc-wrap .fc{font-family:var(--body);font-size:.88rem;min-width:560px}
+.fc-wrap .fc{font-family:var(--body);font-size:.88rem}
+/* a hovered booking sits above its neighbours while lifted (v6.07) */
+/* booking details card beside a clicked booking (spec §7, v6.12), like Google Calendar's */
+.cal-pop{position:absolute;z-index:30;max-width:calc(100vw - 32px);background:var(--surface-raised);border:1px solid var(--line-strong,var(--line));border-radius:14px;box-shadow:0 22px 50px -14px rgba(0,0,0,.7);padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px;outline:none;color:var(--fg)}
+.cal-pop-head{display:flex;align-items:flex-start;gap:12px}
+.cal-pop-dot{flex:0 0 auto;width:14px;height:14px;margin-top:6px;border-radius:4px;background:var(--pc)}
+.cal-pop-t{flex:1;min-width:0}
+.cal-pop-t h3{margin:0;font-size:1.15rem;line-height:1.3;overflow-wrap:anywhere}
+.cal-pop-t p{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
+.cal-pop-st{color:var(--pc);font-weight:600}
+.cal-pop-x{flex:0 0 auto;width:32px;height:32px;margin:-4px -6px 0 0;border:0;border-radius:8px;background:none;color:var(--muted);font-size:1.4rem;line-height:1;cursor:pointer}
+.cal-pop-x:hover{background:var(--surface-2);color:var(--fg)}
+.cal-pop-when{margin:0;font-weight:600;font-size:.92rem}
+.cal-pop-rows{margin:0;display:grid;gap:6px;font-size:.86rem}
+.cal-pop-rows>div{display:grid;grid-template-columns:86px 1fr;gap:10px}
+.cal-pop-rows dt{color:var(--muted)}
+.cal-pop-rows dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.cal-pop-acts{justify-content:flex-end}
+/* only the grid scrolls sideways on narrow screens; the toolbar (date range, view buttons) always fits */
+.fc-wrap .fc .fc-view-harness{overflow-x:auto}
+.fc-wrap .fc .fc-view-harness>:is(.fc-timeGridWeek-view,.fc-dayGridMonth-view){min-width:560px}
 .fc-wrap .fc .fc-toolbar{flex-wrap:wrap;gap:10px}
 .fc-wrap .fc .fc-toolbar-title{font-family:var(--display);font-size:1rem;text-transform:uppercase}
 .fc-wrap .fc .fc-button{border-radius:0;font-weight:600;font-size:.82rem;box-shadow:none}
 .fc-wrap .fc .fc-button-primary:not(:disabled).fc-button-active,.fc-wrap .fc .fc-button-primary:not(:disabled):active{color:var(--fg)}
 .fc-wrap .fc a{color:var(--fg);text-decoration:none}
+.fc-wrap{position:relative}
+/* v6.09: the calendar is built hidden behind its skeleton until its first bookings have loaded, then shows at once */
+.cal-host{position:relative}
+.cal-pending{position:absolute;inset:0 0 auto 0;visibility:hidden;pointer-events:none}
 .fc-wrap .fc .fc-col-header-cell{background:var(--surface-2);padding-block:6px;font-weight:600}
 .fc-wrap .fc .fc-timegrid-slot{height:3.2em}
 .fc-wrap .fc .fc-timegrid-slot-label,.fc-wrap .fc .fc-list-event-time{color:var(--muted);font-variant-numeric:tabular-nums}
@@ -777,9 +929,61 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
 .receipt b{font-size:1.2rem}
 .receipt .r-h{font-weight:700;border-bottom:1px dashed var(--paper-muted);padding-bottom:6px}
 .proof-img{max-width:100%;max-height:340px;width:auto;border:1px solid var(--line)}
+.exp-btn{gap:.4em} /* Export to Excel: ⤓ + text on wider screens; icon only on phones (v5.81) */
+.dl-arrow{display:inline-block} /* Download .xlsx arrow: inline-block so it can move (v5.77) */
+/* Registration Controls → Past & cancelled (v5.88): own arrow instead of the browser's triangle (it flips when opening) */
+.past summary{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;list-style:none;width:fit-content}
+.past summary::-webkit-details-marker{display:none}
+.past summary:hover{color:var(--accent)}
+.past-arrow{display:inline-flex;color:var(--accent)}
+.past[open] .past-arrow{transform:rotate(180deg)} /* reduced motion: flips without the animation */
+.proof-wait{padding:12px 0;font-size:.88rem} /* preloaded booking card: while the receipt link is fetched (v5.76) */
 .login{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
 .login .badge{width:min(440px,100%)}
 .login .in{padding:28px;display:flex;flex-direction:column;gap:16px}
+/* admin sign-in hand-off / console loading (spec §7 Access, v5.66) */
+.signin-spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--lime);animation:signin-spin .8s linear infinite}
+@keyframes signin-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.signin-spin{animation-duration:2.4s}}
+/* Export to Excel preview table: loading state on every filter change (spec §7 Export, v5.90) */
+.ex-pv{position:relative}
+/* admin tab data loading (spec §7, v6.01): .tab-data adds no box; skeleton bars shimmer (exempt from the "no animations" switch; still with reduced motion) */
+.tab-data{display:contents}
+/* shimmer (v6.11, seamless loop): a narrow highlight on a 300 %-wide layer, over the plain grey base. It starts fully off the left
+   edge and ends fully off the right edge, so the first and last frames are identical (plain grey) and the restart can't be seen;
+   linear, so it never stalls at the ends. */
+.skel{display:block;height:.9em;max-width:100%;border-radius:6px;background-color:var(--surface-2);background-image:linear-gradient(90deg,transparent 40%,color-mix(in srgb,var(--line) 85%,transparent) 50%,transparent 60%);background-size:300% 100%;background-repeat:no-repeat;animation:skel 1.6s linear infinite}
+.skel+.skel{margin-top:6px}
+.tbl-tools .skel+.skel,.row .skel+.skel{margin-top:0}
+.skel-btn{height:42px;flex:0 0 auto}
+.skel-card{cursor:default}
+/* Book page loading skeletons (spec §6, v6.04): same shimmer bars, shaped like the court picker and class list */
+.skel-wrap .stepper button{cursor:default}
+.skel-wrap .pick,.skel-wrap .cls-card{cursor:default;pointer-events:none}
+.skel-art{aspect-ratio:4/3;height:auto;border-radius:14px 14px 0 0}
+.skel-date{width:72px;height:58px;border-radius:12px}
+.skel-wrap .cls-card .skel+.skel{margin-top:8px}
+/* Admin Calendar skeleton (spec §7, v6.08): toolbar bars and a week grid shaped like FullCalendar's, with a few booking blocks */
+.cal-skel .skel-chip{height:30px;border-radius:999px}
+.cal-skel .skel+.skel{margin-top:0}
+.cs-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.cs-grp{display:flex;gap:4px}
+.cs-grp .skel{border-radius:8px}
+.cs-scroll{overflow-x:auto}
+.cs-grid{display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));grid-auto-rows:2.8rem;min-width:560px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cs-grid>*{min-width:0}
+.cs-h{display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-left:1px solid var(--line)}
+.cs-t{display:flex;justify-content:flex-end;padding:6px 8px 0;border-top:1px solid var(--line)}
+.cs-c{border-left:1px solid var(--line);border-top:1px solid var(--line)}
+.cs-ev{display:block;height:auto;margin:3px;border-radius:6px;z-index:1}
+@keyframes skel{from{background-position:100% 0}to{background-position:0 0}} /* 100 %: band at −80…−20 % (off left); 0 %: band at 120…180 % (off right) */
+@media (prefers-reduced-motion:reduce){.skel{animation:none!important}}
+.ex-pv .tbl{transition:opacity .2s}
+.ex-pv.is-loading .tbl{opacity:.35}
+.ex-pv-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;font-size:.88rem;color:var(--muted)}
+.ex-pv-load .signin-spin{width:22px;height:22px}
+.ex-skel td span{display:block;height:.8em;border-radius:4px;background:var(--line)}
+@media (prefers-reduced-motion:reduce){.ex-pv .tbl{transition:none}}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{background:var(--surface-2);border:1px solid var(--line);color:var(--fg);padding:.35em .7em;font-size:.8rem;cursor:pointer}
 .chip:hover{border-color:var(--accent);color:var(--accent)}
@@ -793,14 +997,13 @@ body.gate-mode .site-head,body.gate-mode .site-foot{display:none}
   --r-sm:10px;   /* inputs, slots, tiles */
   --spring:cubic-bezier(.34,1.7,.64,1);
   --speed-art:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 110 40'%3E%3Cpath d='M20 40 40 0h16L36 40zM48 40 68 0h16L64 40zM76 40 96 0h14L90 40z' fill='%23d4d62a'/%3E%3C/svg%3E");
-  --confetti-art:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 120'%3E%3Crect x='20' y='30' width='16' height='6' rx='3' fill='%23bdf86c' transform='rotate(-25 28 33)'/%3E%3Crect x='70' y='8' width='14' height='6' rx='3' fill='%23b483d2' transform='rotate(30 77 11)'/%3E%3Ccircle cx='118' cy='40' r='5' fill='%23d4d62a'/%3E%3Crect x='150' y='14' width='16' height='6' rx='3' fill='%23d4d62a' transform='rotate(-40 158 17)'/%3E%3Ccircle cx='196' cy='26' r='4' fill='%23bdf86c'/%3E%3Crect x='204' y='66' width='14' height='6' rx='3' fill='%23b483d2' transform='rotate(55 211 69)'/%3E%3Ccircle cx='60' cy='76' r='4' fill='%23b483d2'/%3E%3Crect x='120' y='86' width='16' height='6' rx='3' fill='%23bdf86c' transform='rotate(15 128 89)'/%3E%3Ccircle cx='170' cy='100' r='5' fill='%23b483d2'/%3E%3C/svg%3E");
   --cut:22px;
 }
 body{line-height:1.65}
 /* Headings: heavier, with a forward speed lean on public page titles */
 h1{font-weight:900}
 .hero h1,.page-top h1,.sec-head h2,.cta-band h2,.gal-sh h2,.done-hero h1{transform:skewX(-6deg);transform-origin:left center}
-.sec-head h2::after{content:"";display:block;width:56px;height:6px;margin-top:14px;background:var(--brand-chartreuse);border-radius:3px}
+.sec-head h2::after{content:"";display:block;width:56px;height:6px;margin-top:14px;background:var(--brand-chartreuse);border-radius:3px;transform:scaleX(var(--ul,1));transform-origin:left center} /* --ul: Home scroll reveal draws it out (spec §4, v5.23) */
 /* Eyebrows become sticker tags with a ball dot */
 .eyebrow{display:inline-flex;align-items:center;gap:8px;width:fit-content;max-width:100%;font-family:var(--sport);font-weight:700;font-size:.92rem;letter-spacing:.12em;line-height:1.3;padding:.22em .9em .22em .6em;border:2px solid var(--brand-lavender);border-radius:999px}
 .eyebrow::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--brand-chartreuse);flex-shrink:0}
@@ -808,9 +1011,22 @@ h1{font-weight:900}
 .btn{font-family:var(--sport);font-weight:700;font-size:1.08rem;letter-spacing:.06em;text-transform:uppercase;padding:.7em 1.5em;border-radius:12px;clip-path:polygon(14px 0,100% 0,100% 100%,0 100%,0 14px);transition:background-color .15s ease,color .15s ease}
 /* Mockup only: buttons and the court picker do not move on hover or click (the build keeps the springy lift, spec §4) */
 .btn:hover,.btn:active,.pick:hover{transform:none}
-.btn-lime,.btn-ok{box-shadow:inset 0 -4px 0 var(--brand-violet)}
+/* no violet bottom edge on any button (v5.71; was on every lime / OK button except Book Now / Book a Court since v5.10) */
 .btn-sm{font-size:.95rem;padding:.55em 1.1em;border-radius:9px;clip-path:polygon(10px 0,100% 0,100% 100%,0 100%,0 10px)}
 .btn-text{text-transform:none;letter-spacing:.02em}
+/* Hover border trace (spec §4, BorderTrace.tsx): on every lime and ghost button of the public site, a line in the button's
+   text color draws itself around the outline, starting at the cut corner and running clockwise; it retracts faster on leave.
+   !important + extra specificity: exempt from the site-wide "no animations" switch further down, like the splash. */
+.btn:has(>.trace-line){position:relative}
+.btn:not(.btn-text):hover{text-decoration:none} /* link-buttons don't pick up the a:hover underline */
+.trace-line{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.btn .trace-line path{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .35s cubic-bezier(.4,0,.2,1)!important}
+.btn:focus-visible .trace-line path{stroke-dashoffset:0;transition-duration:.7s!important}
+@media (hover:hover){.btn:hover .trace-line path{stroke-dashoffset:0;transition-duration:.7s!important}}
+/* Reject's trace is drawn in the Approve button's color (lime, --ok) instead of its text color (v5.73) */
+.btn-danger .trace-line path{stroke:var(--ok)}
+.btn[disabled] .trace-line,.btn[aria-disabled=true] .trace-line{display:none}
+@media (prefers-reduced-motion:reduce){.btn .trace-line path,.btn:hover .trace-line path{transition:none!important}}
 /* Header: court baseline under the bar, pill nav */
 .site-head{border-bottom:3px solid var(--brand-olive)}
 .main-nav a{border-radius:999px;padding:.45em .9em;font-weight:600}
@@ -819,7 +1035,7 @@ h1{font-weight:900}
 .cart-btn{border-radius:10px}
 .menu-btn{border-radius:10px}
 @media (max-width:1100px){
-  .main-nav a{border-radius:0;padding:.7em .8em}
+  .main-nav a{border-radius:0;padding:.75em .8em;font-family:var(--sport);font-weight:700;font-size:clamp(1.5rem,6.5vw,2.1rem);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
   .main-nav a.on{background:none;color:var(--accent);box-shadow:inset 4px 0 0 var(--brand-chartreuse)}
 }
 /* Hero: centered on a plain black background (photo removed v4.69; set --hero-photo to url(...) to add one) */
@@ -829,20 +1045,71 @@ h1{font-weight:900}
 .hero{text-align:center;width:100%;padding-block:clamp(20px,4svh,56px)}
 .hero h1{font-size:min(clamp(1.9rem,5.4vw,4rem),7svh);margin-top:clamp(8px,1.6svh,14px)!important}
 .hero .lead{margin-top:clamp(10px,2.2svh,20px)}
-.hero-cta{margin-top:clamp(14px,3svh,28px)}
-.hero .quick{margin-top:clamp(14px,3svh,30px)}
 .hero>div{display:flex;flex-direction:column;align-items:center}
 .hero h1{transform-origin:center}
 .hero h1 .ln:last-child{color:var(--brand-chartreuse)} /* "Play it." */
+/* "Play it." shine (spec §4): the chartreuse fill is a wide gradient with a white band, clipped to the letters; the band rests
+   just off the right edge (looks plain) and GSAP textShine sweeps it across. Hugs the text so the sweep doesn't cross empty space. */
+@supports (background-clip:text) or (-webkit-background-clip:text){
+  .hero h1 .ln.shine{width:fit-content;margin-inline:auto;color:transparent;-webkit-text-fill-color:transparent;-webkit-background-clip:text;background-clip:text;
+    background-image:linear-gradient(105deg,var(--brand-chartreuse) 42%,#fffbd6 49%,#fff 50%,#fffbd6 51%,var(--brand-chartreuse) 58%);
+    background-size:300% 100%;background-position:0% 0;background-repeat:no-repeat}
+}
 .hero .lead{margin-inline:auto}
-.hero-cta{justify-content:center}
-.quick{width:100%;margin-inline:auto;text-align:left;grid-template-columns:1fr 1fr;align-items:start}
-.quick .inp{height:50px}
-.quick>.btn{grid-column:1/-1;justify-self:center}
-@media (max-width:520px){.hero .lead{font-size:.95rem;line-height:1.55}}
-.hero-cta .btn-lime,.quick>.btn{min-width:9.6em} /* "See open times" matches the "Book a Court" button size */
-@media (max-width:380px){.hero .btn{padding-inline:1.1em}.hero-cta .btn-lime,.quick>.btn{min-width:9em}}
-@media (max-width:340px){.quick{grid-template-columns:1fr}} /* Court + Date stay side by side on phones so the hero fits one screen */
+/* Hero search bar + facts row (v5.29, from the client's sample): one rounded bar with the sport toggle, the date and the lime
+   button; under it three small facts with icons. Stacks into full-width rows on phones. */
+.hero .quick{display:flex;align-items:stretch;gap:8px;margin:clamp(18px,3.4svh,30px) auto 0;padding:8px;width:fit-content;max-width:100%;background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;text-align:left}
+.q-sport{position:relative;display:flex;gap:4px;margin:0;padding:4px;border:0;background:var(--surface-2);border-radius:11px;min-width:0}
+/* sliding highlight (HeroSport.tsx, v5.31): only once JS has placed it; without JS the checked option is lavender itself */
+.q-sport-pill{position:absolute;top:0;left:0;width:0;height:0;border-radius:8px;background:var(--brand-lavender);visibility:hidden}
+.q-sport.ready .q-sport-pill{visibility:visible}
+.q-sport label{z-index:1}
+.q-sport label{position:relative;cursor:pointer}
+.q-sport input{position:absolute;opacity:0;width:1px;height:1px}
+.q-sport span{display:flex;align-items:center;gap:7px;height:100%;padding:.55em 1em;border-radius:8px;font-weight:600;font-size:.95rem;color:var(--fg);white-space:nowrap}
+.q-sport span svg{width:17px;height:17px;flex-shrink:0}
+.q-sport:not(.ready) label:hover input:not(:checked)+span{background:var(--surface-raised)}
+.q-sport:not(.ready) input:checked+span{background:var(--brand-lavender);color:var(--on-accent)}
+.q-sport.ready label:hover input:not(:checked)+span{background:var(--surface-raised)}
+.q-sport input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
+/* date: a button that opens a month calendar (HeroDatePicker.tsx, v5.30) */
+.q-date{position:relative;display:flex;min-width:0}
+.q-date-btn{position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:.6em 40px .6em 14px;background:var(--surface-2);border:0;border-radius:11px;color:var(--fg);font:inherit;cursor:pointer;text-align:left;white-space:nowrap}
+.q-date-btn>span{color:var(--muted);font-size:.9rem}
+.q-date-btn>b{font-size:.95rem}
+/* fixed width: all possible labels share one grid cell invisibly; only the live one shows, and it's clipped while it rolls in */
+.q-date-val{display:grid;overflow:hidden}
+.q-date-val>*{grid-area:1/1;font-style:normal}
+.q-date-val>i{visibility:hidden}
+.q-date-btn::after{content:"";position:absolute;right:16px;top:50%;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg)}
+.q-date-btn[aria-expanded=true]::after{transform:translateY(-20%) rotate(-135deg)}
+.q-date-btn:hover{background:var(--surface-raised)}
+.q-date-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.q-cal{position:absolute;top:calc(100% + 10px);left:50%;translate:-50% 0;z-index:30;width:300px;max-width:calc(100vw - 32px);padding:12px;background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.q-cal.up{top:auto;bottom:calc(100% + 10px)}
+.q-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-family:var(--display);text-transform:uppercase;font-size:.85rem}
+.q-cal-nav button{width:34px;height:34px;border:0;border-radius:9px;background:var(--surface-2);color:var(--fg);font-size:1.2rem;line-height:1;cursor:pointer}
+.q-cal-nav button:hover:not([disabled]){background:var(--surface-raised);color:var(--accent)}
+.q-cal-nav button[disabled]{color:var(--text-disabled);cursor:not-allowed}
+.q-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.q-cal-wd{text-align:center;font-size:.7rem;font-weight:600;letter-spacing:.06em;color:var(--muted);padding-bottom:2px}
+.q-day{aspect-ratio:1/1;border:0;border-radius:9px;background:transparent;color:var(--fg);font:inherit;font-weight:600;font-size:.9rem;cursor:pointer;font-variant-numeric:tabular-nums}
+.q-day:hover:not([disabled]){background:var(--surface-raised);color:var(--accent)}
+.q-day.today{box-shadow:inset 0 0 0 2px var(--accent-2)}
+.q-day.sel{background:var(--brand-lavender);color:var(--on-accent)}
+.q-day[disabled]{color:var(--text-disabled);cursor:not-allowed}
+.q-day:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.hero .quick>.btn{white-space:nowrap;padding-inline:1.4em}
+.hero .quick>.btn svg{width:1em;height:1em}
+.hero-facts{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 26px;list-style:none;margin:clamp(14px,2.6svh,22px) 0 0;padding:0;color:var(--muted);font-size:.92rem}
+.hero-facts li{display:flex;align-items:center;gap:8px}
+.hero-facts svg{width:18px;height:18px;color:var(--brand-lavender);flex-shrink:0}
+@media (max-width:700px){
+  .hero .quick{flex-direction:column;width:100%;max-width:420px}
+  .q-sport label{flex:1}.q-sport span{justify-content:center}
+  .q-date-btn{min-height:46px}
+  .hero-facts{gap:8px 18px;font-size:.86rem}
+}@media (max-width:520px){.hero .lead{font-size:.95rem;line-height:1.55}}
 /* Ticker: slanted scoreboard band */
 .ticker{border-block:0;clip-path:polygon(0 10px,100% 0,100% calc(100% - 10px),0 100%)}
 .ticker-track{font-family:var(--sport);font-style:italic;font-weight:800;font-size:1.3rem;letter-spacing:.08em;text-transform:uppercase;padding:20px 16px}
@@ -859,7 +1126,6 @@ h1{font-weight:900}
 .court-card:hover{transform:translateY(-6px) rotate(-.8deg)}
 .feat .ic{width:60px;height:60px;padding:13px;border-radius:50%;background:var(--surface-raised)}
 .amen svg{width:46px;height:46px;padding:9px;border-radius:50%;background:var(--surface-raised)}
-.quote{border-top:4px solid var(--brand-chartreuse)}
 .quote .stars{font-size:1.15rem}
 .value{border-color:var(--brand-olive)}
 .value .num{width:fit-content;font-family:var(--sport);font-weight:800;font-size:.95rem;letter-spacing:.08em;text-transform:uppercase;padding:.1em .7em;background:var(--brand-lavender);color:var(--on-accent);border-radius:6px;transform:skewX(-8deg)}
@@ -878,9 +1144,12 @@ h1{font-weight:900}
 /* Scoreboard numbers */
 .stat b,.kpi b,.day b,.cal-day b,.cls-date b,.court-card .price,.summary .total span:last-child,.acct,.ref,.tp-step{font-family:var(--sport);font-weight:800;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .stat b{font-size:2.3rem;line-height:1}
-.kpi b{font-size:clamp(1.5rem,2.8vw,2rem);line-height:1.05}
-.stat,.kpi{border-top:4px solid var(--brand-olive)}
-.stat.hot{border-top-color:var(--accent)}
+/* the number shrinks with its card so a 7–8 digit amount (₱12,345,678) stays on one line */
+.kpi{container-type:inline-size}
+.kpi b{font-size:min(clamp(1.5rem,2.8vw,2rem),15cqi);line-height:1.05;white-space:nowrap}
+/* Reports KPI cards: plain, no olive-green top edge (v5.94) */
+/* Dashboard stat cards: plain, no colored top edge or lavender outline (v5.69) */
+.stat,.stat.hot{border:1px solid var(--line)}
 .court-card .price{font-size:1.7rem;line-height:1.1}
 .summary .total span:last-child{font-size:1.6rem}
 .day b{font-size:1.5rem}
@@ -915,9 +1184,9 @@ h1{font-weight:900}
 .toast{border-radius:12px}
 .fc-wrap .fc .fc-button{border-radius:8px}
 .fc-wrap .fc .ev{border-radius:6px}
-/* Booking received: small celebratory confetti */
-.done-hero{background-image:var(--confetti-art);background-repeat:no-repeat;background-position:right top;background-size:240px 120px;padding-top:8px}
-@media (max-width:600px){.done-hero{background-size:150px 75px}}
+/* Request sent: no background confetti (removed v5.47); the cancel/reschedule note has no violet left edge (v5.47) */
+.done-hero{padding-top:8px}
+.done-hero .banner.no-edge{border-left:0}
 /* Reduced motion: no hover lifts */
 @media (prefers-reduced-motion:reduce){.feat:hover,.quote:hover,.value:hover,.amen:hover,.court-card:hover,.teaser button:hover .ph{transform:none}}
 
@@ -937,7 +1206,9 @@ h1{font-weight:900}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 /* No animations: only the splash screen animates (spec §4, v4.31). Hovers still change color/outline, without movement. Delete this block to bring animations back. */
 html{scroll-behavior:auto!important}
-*:not([data-splash]):not([data-splash] *),*::before,*::after{animation:none!important;transition:none!important}
+/* Loading spinners keep spinning (v5.92): ours (.signin-spin: sign-in hand-off, console loading, export preview) and Clerk's inside the sign-in form (.cl-spinner).
+   Kept inside :where() so they add no specificity: the exemptions above (button trace, menu, FAQ, nav) rely on beating this rule's specificity (v5.93). */
+*:not([data-splash]):not([data-splash] *):where(:not(.signin-spin):not([class*="cl-spinner"]):not(.skel)),*::before,*::after{animation:none!important;transition:none!important}
 .btn:hover,.btn:active,.pick:hover,.feat:hover,.quote:hover,.value:hover,.amen:hover,.court-card:hover,.teaser button:hover .ph,.gal-grid button:hover .ph{transform:none!important}
 /* splash screen (logo animation, every page load) */
 html.splash-on,html.splash-on body{overflow:hidden}
@@ -947,9 +1218,6 @@ html.splash-on,html.splash-on body{overflow:hidden}
 .skip-link:focus{left:8px}
 .proof-frame{width:100%;height:340px;border:1px solid var(--line);background:var(--paper)}
 .form-err{color:var(--bad);font-size:.88rem}
-.mode-sw .mode-btn{color:var(--muted);font-weight:600;padding:.6em 1.1em;display:inline-flex;gap:8px;align-items:center;text-decoration:none;border-radius:999px}
-.mode-sw .mode-btn:hover{color:var(--fg);text-decoration:none}
-.mode-sw .mode-btn.on{background:var(--brand-violet);color:var(--fg)}
 .teaser-link:hover{text-decoration:none}
 /* admin nav uses links (mockup used buttons) */
 .adm-side nav .adm-nav{color:var(--fg);text-decoration:none;padding:.6em .8em;font-weight:500;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.92rem;border-radius:var(--r-sm)}
@@ -957,11 +1225,87 @@ html.splash-on,html.splash-on body{overflow:hidden}
 .adm-side nav .adm-nav.on{background:var(--brand-violet);color:var(--fg)}
 .adm-side nav .adm-nav .c{font-size:.72rem;background:var(--surface-2);color:var(--fg);padding:0 7px;border-radius:9px;font-variant-numeric:tabular-nums}
 .adm-side nav .adm-nav.on .c{background:var(--brand-lavender);color:var(--on-accent)}
-.subnav .subtab{border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);padding:.7em 1em;font-weight:600;font-size:.92rem;white-space:nowrap;display:inline-flex;gap:8px;align-items:center;text-decoration:none}
+.subnav .subtab{border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);padding:.7em .7em;font-weight:600;font-size:.9rem;white-space:nowrap;display:inline-flex;gap:6px;align-items:center;text-decoration:none}
 .subnav .subtab:hover{color:var(--fg);text-decoration:none}
 .subnav .subtab.on{color:var(--accent);border-bottom-color:var(--accent)}
 .subnav .subtab .c{font-size:.72rem;background:var(--surface-2);color:var(--fg);padding:0 7px;border-radius:9px;font-variant-numeric:tabular-nums}
 .subnav .subtab.on .c{background:var(--brand-lavender);color:var(--on-accent)}
 @media (max-width:700px){.hm-sub .hm-list .subtab{width:100%;justify-content:space-between;border:0;margin:0;padding:.8em .9em;color:var(--fg)}.hm-sub .hm-list .subtab.on{background:var(--brand-violet)}}
-@media (max-width:860px){.adm-side nav .adm-nav{padding:.8em .9em}}
 .acts form{display:inline}
+
+/* Contact form paper-plane send + receipt (spec §2 Contact, v5.45; GSAP paperPlane) */
+.contact-card{position:relative}
+.pp-sheet{position:absolute;z-index:5;background:#f6f3ec;color:#1d1a24;border-radius:4px;box-shadow:0 10px 24px rgb(0 0 0 / .28);overflow:hidden;pointer-events:none;transform-origin:50% 50%}
+.pp-ink{margin:0;padding:12px 14px;font-size:.9rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.pp-crease{position:absolute;left:30%;top:56%;width:70%;height:1px;background:rgb(0 0 0 / .18);transform:rotate(-4deg);transform-origin:left center}
+.pp-to{display:flex;align-items:center;gap:12px}
+.pp-to small{display:block;font-size:.75rem}
+.pp-av{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--brand-lavender);color:var(--on-accent);font-weight:800;font-size:.85rem;flex-shrink:0}
+.pp-lines{display:flex;flex-direction:column;gap:6px;margin:0;padding-top:12px;border-top:1px dashed var(--line);font-size:.9rem}
+.pp-lines div{display:flex;justify-content:space-between;gap:12px}
+.pp-lines dt{color:var(--muted)}
+.pp-lines dd{margin:0;text-align:right}
+/* Header hover/press motion (spec §4, v5.49; navHover.ts). Desktop: one hover pill glides between the nav tabs (drawn by GSAP;
+   the tabs drop their own hover background once it's running). Colors fade instead of snapping: these transitions outrank the
+   global no-animation rule on purpose. */
+.nav-pill{position:absolute;left:0;top:0;border-radius:999px;background:var(--surface-raised);pointer-events:none;opacity:0;visibility:hidden}
+@media (min-width:1101px){.main-nav{position:relative}.main-nav>a{position:relative;z-index:1}}
+@media (max-width:1100px){.nav-pill{display:none}}
+.main-nav.has-pill>a:hover:not(.on){background:none}
+.site-head .main-nav a,.site-head .cart-btn,.site-head .nav-cart{transition:color .25s ease,background-color .25s ease!important}
+@media (prefers-reduced-motion:reduce){.site-head .main-nav a,.site-head .cart-btn,.site-head .nav-cart{transition:none!important}}
+/* Gallery tabs on phones (v5.56): the 4 tabs stay side by side in one row (no ☰ dropdown), sharing the width equally; long names
+   wrap onto two lines inside their tab, so the row never scrolls sideways */
+@media (max-width:700px){
+  .gal-list{width:100%;gap:4px}
+  .gal-tabs .gal-list button{flex:1 1 0;min-width:0;white-space:normal;line-height:1.15;padding:.5em .3em;text-align:center;border-radius:12px}
+}
+/* Gallery tabs' sliding highlight (v5.56; GalleryView.tsx): one violet pill glides to the active tab. Layers, all in DOM order with
+   no z-index: the grey tab backgrounds (.tab-slot spans, placed on each tab by tabMotion.ts), then the pill, then the tabs
+   (transparent) with their text on top. v5.60: the grey backgrounds used to be a z-index:-1 ::before inside each button, which iOS
+   Safari painted over the pill. */
+.gal-list{position:relative}
+.gal-list button{position:relative}
+.gal-list.ready button,.gal-list.ready button.on{background:transparent;box-shadow:none}
+.tab-slot{position:absolute;top:0;left:0;width:0;height:0;border-radius:999px;background:var(--surface-2);pointer-events:none;visibility:hidden}
+.gal-list.ready .tab-slot{visibility:visible}
+@media (max-width:700px){.gal-list .tab-slot{border-radius:12px}}
+.gal-pill{position:absolute;top:0;left:0;width:0;height:0;border-radius:999px;background:var(--brand-violet);box-shadow:inset 0 0 0 2px var(--brand-lavender);pointer-events:none;visibility:hidden}
+.gal-list.ready .gal-pill{visibility:visible}
+@media (max-width:700px){.gal-pill{border-radius:12px}}
+/* Programs & Events jump tabs (v5.58; PeTabs.tsx), same behavior as the Gallery tabs: the row sticks under the site header (its
+   background stretched to the screen edges), one row side by side on phones with every label on one line, centered in its tab (v5.58), and a dark violet pill with a lavender outline (as on the Gallery tabs, v5.64) slides to the active tab. Layers
+   in DOM order: grey tab backgrounds (.tab-slot, v5.65), then the pill, then the tabs (transparent) with their text on top. */
+.pe-tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--head-h));z-index:20;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg);clip-path:inset(0 -100vmax);padding-block:10px;margin-bottom:18px}
+[id^="pe-"]{scroll-margin-top:calc(var(--head-h) + 72px)}
+.pe-tabs .chips{position:relative;flex-wrap:nowrap}
+.pe-tabs .chip{position:relative;text-decoration:none;transition:color .3s ease!important}
+.pe-tabs .chips.ready .chip,.pe-tabs .chips.ready .chip.on{background:transparent;border-color:transparent}
+/* grey tab backgrounds + outline: separate .tab-slot spans under the pill, exactly as on the Gallery (v5.65). They used to be a
+   z-index:-1 ::before inside each tab, which a tab sliding in during the page entrance (transform = its own stacking context)
+   pulled up over the pill, so the first tab looked grey/white until its slide finished. Hover outline: on the tab's own border. */
+.pe-tabs .chips.ready .tab-slot{visibility:visible;box-shadow:inset 0 0 0 1px var(--line)}
+@media (hover:hover){.pe-tabs .chips.ready .chip:hover{border-color:var(--accent)}}
+.pe-tabs .chip.on,.pe-tabs .chip.on:hover{color:var(--fg)} /* white on the dark violet pill (v5.64) */
+/* same highlight as the Gallery tabs (v5.64; was a plain lavender pill with dark text): dark violet with a lavender outline */
+.pe-pill{position:absolute;top:0;left:0;width:0;height:0;border-radius:999px;background:var(--brand-violet);box-shadow:inset 0 0 0 2px var(--brand-lavender);pointer-events:none;visibility:hidden}
+.pe-tabs .chips.ready .pe-pill{visibility:visible}
+.pe-tabs .chip{display:inline-flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap}
+/* phones: each tab as wide as its label (one line, "Upcoming events" included), then the spare width shared out; labels centered */
+@media (max-width:700px){.pe-tabs .chip{flex:1 1 auto;padding-inline:.6em}}
+@media (prefers-reduced-motion:reduce){.pe-tabs .chip{transition:none!important}}
+/* Touch screens keep :hover on the last tapped element, which left the tapped Gallery / Programs & Events tab looking highlighted
+   (lime text, outline) after the page had moved on (v5.58). Hover looks on those tabs are for mouse pointers only. */
+@media (hover:none){
+  .gal-tabs button:hover{color:var(--fg)}
+  .pe-tabs .chip:hover{color:var(--fg);border-color:transparent}
+  .pe-tabs .chip.on:hover{color:var(--fg)}
+}
+/* iOS Safari (v5.62): during a long programmatic scroll (a Gallery / Programs & Events tab glide over 2+ sections) it could paint
+   page content over the sticky bars for a frame, so bits of the page flashed across the header and tab rows. Each sticky bar gets
+   its own compositing layer so it always stays on top. The header only while the phone menu is closed: a transform makes it the
+   containing block of the full-screen (position:fixed) menu inside it, which would squash the menu to the bar's size. */
+.gal-tabs,.pe-tabs{transform:translateZ(0)}
+.site-head:not(:has(.main-nav.open)){transform:translateZ(0)}
+/* Gallery tabs use the same type as the Programs & Events tabs (v5.63): Lexend Deca, regular weight, .8rem (was semi-bold, .88rem) */
+.gal-tabs .gal-list button{font-family:var(--body);font-weight:400;font-size:.8rem}

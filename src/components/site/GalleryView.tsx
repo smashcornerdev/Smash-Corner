@@ -2,13 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Arrow, Ph } from "@/components/art";
 import { GALLERY, GALLERY_TONES } from "@/lib/gallery";
+import { glideTo, useTabPill } from "./tabMotion";
 
-/* Gallery (spec §3): 4 one-screen sections, sticky tabs (☰ dropdown on phones), scroll-spy, lightbox with next/previous. */
+/* Gallery (spec §3): 4 one-screen sections, sticky tabs (one row side by side on phones too, v5.56; was a ☰ dropdown), scroll-spy,
+   lightbox with next/previous. A tab click glides the page to its section (GSAP ScrollToPlugin, v5.56), and the violet highlight slides from tab to tab
+   whenever the active section changes, by click or by scrolling (v5.56). Reduced motion: instant jump, highlight just moves. */
 export default function GalleryView() {
   const [active, setActive] = useState<string>(GALLERY[0].id);
-  const [menu, setMenu] = useState(false);
   const [lb, setLb] = useState<number | null>(null);
-  const bar = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null), list = useRef<HTMLDivElement>(null), pill = useRef<HTMLSpanElement>(null);
   const photos = GALLERY.flatMap((g, gi) => Array.from({ length: 6 }, (_, i) => ({ g, i, tone: GALLERY_TONES[(i + gi) % 6] })));
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function GalleryView() {
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  useTabPill(list, pill, active); // sliding highlight (tabMotion.ts)
   useEffect(() => {
     if (lb === null) return;
     const onKey = (e: KeyboardEvent) => {
@@ -37,27 +40,26 @@ export default function GalleryView() {
   }, [lb, photos.length]);
 
   const jump = (id: string) => {
-    document.getElementById("g-" + id)?.scrollIntoView();
-    setActive(id);
-    setMenu(false);
+    (document.activeElement as HTMLElement | null)?.blur(); // the highlight belongs to the section on screen, not the clicked tab
+    const el = document.getElementById("g-" + id);
+    if (!el) return;
+    // lands where scrollIntoView would: the section's top just under the header + tab bar (its scroll-margin-top)
+    glideTo(el, parseFloat(getComputedStyle(el).scrollMarginTop) || 0);
   };
-  const cur = GALLERY.find((g) => g.id === active)!;
   const p = lb !== null ? photos[lb] : null;
 
   return (
     <>
       <div className="gal-tabs" ref={bar}>
         <div className="wrap">
-          <div className={"hm hm-sub gal-hm" + (menu ? " open" : "")}>
-            <button type="button" className="hm-btn" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-              <span className="hm-ic" aria-hidden="true">☰</span><span className="hm-cur">{cur.name}</span>
-              <span className="hm-car" aria-hidden="true"><Arrow dir="d" /></span>
-            </button>
-            <div className="hm-list gal-list" role="tablist" aria-label="Gallery sections">
-              {GALLERY.map((g) => (
-                <button key={g.id} role="tab" className={active === g.id ? "on" : ""} aria-selected={active === g.id} onClick={() => jump(g.id)}>{g.name}</button>
-              ))}
-            </div>
+          <div className="gal-list" ref={list} role="tablist" aria-label="Gallery sections">
+            {/* grey tab backgrounds, then the sliding highlight, both under the tab text (v5.60: real elements, not ::before inside
+                the buttons, which iOS Safari drew over the highlight) */}
+            {GALLERY.map((g) => <span className="tab-slot" aria-hidden="true" key={g.id} />)}
+            <span className="gal-pill" ref={pill} aria-hidden="true" />
+            {GALLERY.map((g) => (
+              <button key={g.id} role="tab" className={active === g.id ? "on" : ""} aria-selected={active === g.id} onClick={() => jump(g.id)}>{g.name}</button>
+            ))}
           </div>
         </div>
       </div>

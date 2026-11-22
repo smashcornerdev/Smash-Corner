@@ -3,10 +3,17 @@
 import { db } from "@/lib/supabase";
 import { addDaysKey, todayKey } from "@/lib/time";
 import { dayStates } from "@/lib/availability";
-import { addToCart, approve, edit, expireUnpaidOrders, getCart, orderBookings, reject, submitPayment, submitRequest } from "@/lib/flows/bookings";
+import { addToCart, approve, edit, getCart, orderBookings, reject, submitPayment, submitRequest } from "@/lib/flows/bookings";
 import { approveReg, register, submitClassPayment } from "@/lib/flows/classes";
 import { approveEntry, processSlot } from "@/lib/flows/waitlist";
 import type { Admin } from "@/lib/types";
+import { tick } from "../supabase/functions/tick/jobs";
+
+// the every-minute jobs run in the tick Edge Function; the test runs the same code (jobs.ts) here against the real project
+const jobs = tick({
+  db: db(), siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000", linkSecret: process.env.LINK_SECRET!,
+  mail: { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM || "Smash Corner <noreply@smashcorner-qc.com>", testTo: process.env.EMAIL_TEST_TO, dryRun: process.env.EMAIL_DRY_RUN === "true" },
+});
 
 const admin: Admin = { email: "admin1@smashcorner-qc.com", name: "Admin One (e2e)", role: "super_admin" };
 const EMAIL = "e2e.test@example.com", WAIT = "e2e.wait@example.com";
@@ -15,17 +22,20 @@ const ok = (c: unknown, m: string) => { console.log((c ? "PASS " : "FAIL ") + m)
 const status = async (ids: string[]) => ((await db().from("bookings").select("status").in("id", ids)).data ?? []).map((r) => r.status as string);
 const receipt = () => new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], "receipt.pdf", { type: "application/pdf" });
 
-async function cleanup() {
-  const orders = ((await db().from("orders").select("id").in("email", [EMAIL, WAIT])).data ?? []).map((o) => o.id);
+/* also removes browser-test data (Playwright CLI runs book with e2e.ui.*@example.com) */
+export async function cleanup() {
+  const orders = ((await db().from("orders").select("id").or(`email.in.(${EMAIL},${WAIT}),email.like.e2e.ui.%@example.com`)).data ?? []).map((o) => o.id);
   const bookings = ((await db().from("bookings").select("id, ref").in("order_id", orders.length ? orders : ["00000000-0000-0000-0000-000000000000"])).data ?? []);
   const proofs = ((await db().from("orders").select("proof_path").in("id", orders.length ? orders : ["00000000-0000-0000-0000-000000000000"])).data ?? []).map((o) => o.proof_path).filter(Boolean);
   const classes = ((await db().from("classes").select("id").like("title", "E2E %")).data ?? []).map((k) => k.id);
-  const regs = ((await db().from("class_registrations").select("ref, proof_path").in("class_id", classes.length ? classes : ["00000000-0000-0000-0000-000000000000"])).data ?? []);
+  const regs = ((await db().from("class_registrations").select("id, ref, proof_path").or(`class_id.in.(${classes.length ? classes : ["00000000-0000-0000-0000-000000000000"]}),email.like.e2e.ui.%@example.com`)).data ?? []);
   if (proofs.length || regs.some((r) => r.proof_path)) await db().storage.from("receipts").remove([...proofs, ...regs.map((r) => r.proof_path).filter(Boolean)] as string[]);
   await db().from("holds").delete().like("session_id", "e2e-%");
   await db().from("waitlist").delete().in("email", [EMAIL, WAIT]);
+  await db().from("waitlist").delete().like("email", "e2e.ui.%@example.com");
   if (bookings.length) await db().from("bookings").delete().in("id", bookings.map((b) => b.id));
   if (orders.length) await db().from("orders").delete().in("id", orders);
+  if (regs.length) await db().from("class_registrations").delete().in("id", regs.map((r) => r.id));
   if (classes.length) { await db().from("class_registrations").delete().in("class_id", classes); await db().from("classes").delete().in("id", classes); }
   await db().from("activity_log").delete().in("ref", [...bookings.map((b) => b.ref), ...regs.map((r) => r.ref), "E2E Clinic"]);
   await db().from("activity_log").delete().eq("admin_name", "Admin One (e2e)");
@@ -88,7 +98,7 @@ async function main() {
   const b3 = (await orderBookings(r3.orderId))[0];
   await approve(admin, b3.id);
   await db().from("orders").update({ pay_due_at: new Date(Date.now() - 1000).toISOString() }).eq("id", r3.orderId);
-  await expireUnpaidOrders();
+  await jobs.expireUnpaidOrders();
   ok((await status([b3.id]))[0] === "unpaid" && (await dayStates("p1", date, null))[h1] === "open", "not paid in 24 hours: unpaid, hour released");
 
   // class: register → approve → pay → confirm
@@ -104,6 +114,7 @@ async function main() {
   await processSlot("p1", date, h3); // no-op check: already reserved
 }
 
-main()
+// only run the checks when started directly (scripts/cleanup.ts imports cleanup())
+if (process.argv[1]?.replace(/\\/g, "/").endsWith("scripts/e2e.ts")) main()
   .catch((e) => { console.error(e); fails++; })
   .finally(async () => { await cleanup(); console.log(fails ? `\n${fails} check(s) failed` : "\nAll checks passed. Test data removed."); process.exit(fails ? 1 : 0); });
