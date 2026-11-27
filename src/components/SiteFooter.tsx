@@ -8,7 +8,7 @@ export default function SiteFooter() {
         <div className="foot-grid">
           <div className="stack">
             <Link href="/" className="brand"><span className="brand-mark" aria-hidden="true" /><span className="brand-word">SMASH<br />CORNER</span></Link>
-            <p className="muted">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Tennis and pickleball courts in Quezon City.</p>
+            <p className="muted">Tennis and pickleball courts in Quezon City. Book online, rent equipment on site and play from 7 AM to 10 PM daily.</p>
           </div>
           <div><h4>Visit</h4><ul><li>{SITE.address}</li><li>Daily 7:00 AM – 10:00 PM</li><li>{SITE.phone}</li><li>{SITE.email}</li></ul></div>
           <div><h4>Explore</h4><ul><li><Link href="/courts">Courts</Link></li><li><Link href="/gallery">Gallery</Link></li><li><Link href="/programs">Programs &amp; Events</Link></li></ul></div>

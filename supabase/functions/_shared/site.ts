@@ -15,9 +15,11 @@ export const TIMEZONE = "Asia/Manila";
 export const SITE_INFO = {
   name: "Smash Corner",
   domain: "smashcorner-qc.com",
-  address: "Lorem Ipsum St., Quezon City",
-  phone: "(02) 8000 0000",
-  email: "hello@smashcorner-qc.com",
+  address: "98 Maria Clara St. corner Sto. Domingo Ave., Quezon City",
+  phone: "(02) 8332 1900",
+  email: "smash.corner2026@gmail.com",
+  // Google Maps pin for 98 Maria Clara St. (Contact page map); NEXT_PUBLIC_MAP_EMBED_URL overrides it
+  mapEmbed: "https://maps.google.com/maps?q=14.627726,121.005311&z=17&output=embed",
   hours: "Daily, 7:00 AM – 10:00 PM",
 };
 export const DEFAULT_SENDER = "Smash Corner <noreply@smashcorner-qc.com>";

@@ -3,7 +3,7 @@ import { PageTop } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Booking Policy", description: "Smash Corner booking, payment, cancellation and refund policy.", alternates: { canonical: "/policy" } };
 
-/* Booking & Refund Policy (spec §17). Placeholder wording until the client supplies the final policy. */
+/* Booking & Refund Policy (spec §17). Draft wording for the client to review before launch. */
 const SECTIONS: [string, string[]][] = [
   ["Bookings", [
     "A booking request is reviewed by an admin first. Once it is approved, you get an email with the amount and payment details.",
@@ -30,7 +30,7 @@ export default function PolicyPage() {
   let n = 1;
   return (
     <>
-      <PageTop eyebrow="Booking Policy" title="Booking & refund policy" lead="Placeholder wording. The final policy will be supplied by Smash Corner." />
+      <PageTop eyebrow="Booking Policy" title="Booking & refund policy" lead="How booking requests, payments, changes and refunds work at Smash Corner." />
       <section className="sec wrap" style={{ paddingTop: 12, maxWidth: 820 }}>
         {SECTIONS.map(([t, items]) => {
           const start = n;

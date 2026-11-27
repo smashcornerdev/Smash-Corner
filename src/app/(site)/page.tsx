@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Arrow, Icon, Ph, type Tone } from "@/components/art";
+import { Arrow, Icon } from "@/components/art";
 import { CourtCard } from "@/components/site/CourtCard";
 import { SecHead } from "@/components/ui";
 import { getCourts } from "@/lib/catalog";
-import { L, SITE } from "@/lib/config";
+import { SITE } from "@/lib/config";
 import { maxBookKey, todayKey } from "@/lib/time";
-import { GALLERY } from "@/lib/gallery";
+import { GALLERY, driveImg } from "@/lib/gallery";
 import HeroIntro from "@/components/site/HeroIntro";
 import SectionReveal from "@/components/site/SectionReveal";
 import HeroDatePicker from "@/components/site/HeroDatePicker";
@@ -13,7 +13,7 @@ import HeroSport from "@/components/site/HeroSport";
 
 export const dynamic = "force-dynamic";
 
-/* Home: Hero · Courts Preview · Why Choose Us · Gallery Teaser · Testimonials · Final CTA (spec §3) */
+/* Home: Hero · Courts Preview · Why Choose Us · Gallery Teaser · Final CTA (spec §3) */
 export default async function Home() {
   const courts = await getCourts();
   const t0 = todayKey();
@@ -58,47 +58,39 @@ export default async function Home() {
       </div>
 
       <section className="sec wrap">
-        <SecHead eyebrow="Our Courts" title="Three courts. One corner." lead={L[1]} action={<Link href="/courts" className="btn btn-ghost btn-sm">Court details</Link>} />
+        <SecHead eyebrow="Our Courts" title="Three courts. One corner." lead="A full-size tennis court and two pickleball courts, each bookable by the hour from 7 AM to 10 PM." action={<Link href="/courts" className="btn btn-ghost btn-sm">Court details</Link>} />
         <div className="g3">{courts.map((c, i) => <CourtCard key={c.id} c={c} i={i} />)}</div>
       </section>
 
       <section className="sec wrap" style={{ paddingTop: 0 }}>
         <SecHead eyebrow="Why Smash Corner" title="Why choose us" />
         <div className="g4">
-          {[["bolt", "Book in minutes"], ["cal", "Open 7 AM daily"], ["light", "Night lights"], ["shield", "Verified bookings"]].map(([ic, t], i) => (
-            <div className="feat" key={t}><Icon name={ic} className="ic" /><h3>{t}</h3><p className="muted">{L[(i + 2) % L.length]}</p></div>
+          {[
+            ["bolt", "Book in minutes", "Pick a court, date and time online and send your request. No account or phone call needed."],
+            ["cal", "Open 7 AM daily", "Courts run from 7:00 AM to 10:00 PM every day, so early sessions and after-work games both fit."],
+            ["light", "Night lights", "Every court is fully lit until closing, giving evening players clear sight lines from baseline to net."],
+            ["shield", "Verified bookings", "Our team checks each request and confirms it by email, so your slot is ready when you arrive."],
+          ].map(([ic, t, d]) => (
+            <div className="feat" key={t}><Icon name={ic} className="ic" /><h3>{t}</h3><p className="muted">{d}</p></div>
           ))}
         </div>
       </section>
 
       <section className="sec wrap" style={{ paddingTop: 0 }}>
-        <SecHead eyebrow="Gallery" title="Take a look around" action={<Link href="/gallery" className="btn btn-ghost btn-sm">Full gallery</Link>} />
+        <SecHead eyebrow="Gallery" title="Take a look" action={<Link href="/gallery" className="btn btn-ghost btn-sm">Full gallery</Link>} />
         <div className="teaser">
-          {GALLERY.map((g, i) => (
-            <Link key={g.id} href={`/gallery#g-${g.id}`} className="teaser-link" style={{ display: "flex", flexDirection: "column", gap: 8, color: "var(--fg)", textDecoration: "none" }}>
-              <Ph kind={g.kind} tone={(["lav", "dark", "lime", "dark2"] as Tone[])[i]} label={g.name} />
-              <span className="cap" style={{ fontWeight: 600, fontSize: ".92rem" }}>{g.name} <Arrow /></span>
+          {/* first 4 gallery photos (v6.52; the Gallery no longer has sections to link to) */}
+          {GALLERY.slice(0, 4).map((g, i) => (
+            <Link key={g.id} href="/gallery" className="teaser-link" aria-label={`Gallery photo ${i + 1}`} style={{ display: "block" }}>
+              <img className="teaser-img" loading="lazy" decoding="async" referrerPolicy="no-referrer" src={driveImg(g.id, 600)} alt={`Smash Corner photo ${i + 1}`} />
             </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="sec wrap" style={{ paddingTop: 0 }}>
-        <SecHead eyebrow="Testimonials" title="Players say" />
-        <div className="g3">
-          {["Juan D.", "Maria S.", "Pedro R."].map((n, i) => (
-            <blockquote className="quote" style={{ margin: 0 }} key={n}>
-              <span className="stars" aria-label="5 stars">★★★★★</span>
-              <p>“{L[(i + 3) % L.length]}”</p>
-              <footer><strong>{n}</strong>{["Pickleball regular", "Tennis player", "Weekend league"][i]}</footer>
-            </blockquote>
           ))}
         </div>
       </section>
 
       <section className="wrap" style={{ paddingBottom: 40 }}>
         <div className="cta-band dk">
-          <div className="stack" style={{ gap: 10 }}><h2>Ready to play?</h2><p>{L[4]}</p></div>
+          <div className="stack" style={{ gap: 10 }}><h2>Ready to play?</h2><p>Choose your court and time online. We will email you as soon as your request is approved.</p></div>
           <Link href="/book" className="btn btn-lime no-edge">Book a Court</Link>
         </div>
       </section>

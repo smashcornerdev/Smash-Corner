@@ -126,6 +126,7 @@ export async function classStatusAction(fd: FormData) {
   });
 }
 const classSchema = z.object({
+  kind: z.enum(["class", "event"], { message: "Choose Class or Event." }), description: z.string().trim().max(300, "Keep the description under 300 characters.").default(""),
   title: z.string().trim().min(3, "Enter a title.").max(120), courtId: z.string(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date."),
   start: z.coerce.number().int(), end: z.coerce.number().int(), deadline: z.string().min(10, "Choose a registration deadline."),
   capacity: z.coerce.number().int().min(1, "Capacity is at least 1."), fee: z.coerce.number().int().min(0, "The fee is 0 or more."),
@@ -160,15 +161,15 @@ async function openClass(a: Awaited<ReturnType<typeof assertAdmin>>, fd: FormDat
   const hit = clash.filter((b) => b.hours.some((h) => hours.includes(h)));
   if (hit.length) throw new FlowError(`Court bookings already use that time: ${hit.map((b) => b.ref).join(", ")}. Move them first.`);
   const k = must(await db().from("classes").insert({
-    branch_id: BRANCH_ID, title: d.title, court_id: d.courtId, date: d.date, start_hour: d.start, end_hour: d.end, deadline: new Date(deadline).toISOString(),
+    branch_id: BRANCH_ID, kind: d.kind, description: d.description, title: d.title, court_id: d.courtId, date: d.date, start_hour: d.start, end_hour: d.end, deadline: new Date(deadline).toISOString(),
     capacity: d.capacity, fee: d.fee, rental_fee: d.rentals === "yes" ? d.rentalFee ?? 0 : null, rental_qty: d.rentals === "yes" ? d.rentalQty ?? 0 : 0, created_by: a.name,
   }).select().single()) as { title: string };
   // cart holds on those hours are dropped
   const holds = must(await db().from("holds").select("id, hours").eq("court_id", d.courtId).eq("date", d.date)) as { id: string; hours: number[] }[];
   const drop = holds.filter((h) => h.hours.some((x) => hours.includes(x))).map((h) => h.id);
   if (drop.length) await db().from("holds").delete().in("id", drop);
-  await logAction(a, "Class registration opened", k.title, `${d.courtId} · ${d.date} ${d.start}–${d.end} · ${d.capacity} slots`);
-  return `Registration is open. "${k.title}" is now on the Book page.`;
+  await logAction(a, d.kind === "event" ? "Event registration opened" : "Class registration opened", k.title, `${d.courtId} · ${d.date} ${d.start}–${d.end} · ${d.capacity} slots`);
+  return `Registration is open. "${k.title}" is now on the Book page and under ${d.kind === "event" ? "Events" : "Programs"} on Programs & Events.`;
 }
 
 /* ---------- management (super-admins) ---------- */

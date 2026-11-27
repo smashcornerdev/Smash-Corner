@@ -63,8 +63,8 @@ export function heroIntro(scope: Element) {
       tl.to(q(".ticker"), { clipPath: "inset(0% 0% 0% 0%)", duration: 1.3, ease: "expo.inOut" }, 1.35)
         .to(words, { autoAlpha: 1, duration: 0.8, stagger: 0.06, ease: "power2.out" }, 1.75);
     }
-    // once everything has landed, light glints across "Play it." (once)
-    if (play1) textShine(play1, { delay: tl.duration() - 0.3 });
+    // once everything has landed, light glints across "Play it.", then again every 3 s (2 s sweep + 1 s pause; v6.61)
+    if (play1) textShine(play1, { delay: tl.duration() - 0.3, every: 1 });
   });
   return { play, revert: () => { ctx.revert(); if (band) band.style.clipPath = ""; } };
 }

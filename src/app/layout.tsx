@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Lexend_Deca, Unbounded } from "next/font/google";
 import SplashScreen from "@/components/SplashScreen";
 import BorderTrace from "@/components/site/BorderTrace";
+import ParallaxBackground from "@/components/ParallaxBackground";
 import { SITE } from "@/lib/config";
 import "./globals.css";
 
@@ -23,6 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${lexend.variable} ${barlow.variable} ${unbounded.variable}`}>
       <body>
+        {/* site-wide parallax court photo behind everything (spec §4, v6.28) */}
+        <ParallaxBackground />
         {/* plays on every load / refresh, skippable (spec §4) */}
         <SplashScreen />
         {children}

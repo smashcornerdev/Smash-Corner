@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Arrow, Ph, TONES, courtArt } from "@/components/art";
+import { Arrow, CourtImg, TONES } from "@/components/art";
 import { addToCartAction, joinWaitlistAction } from "@/app/actions/booking";
 import { CLOSE_HOUR, HOURS } from "@/lib/config";
 import { peso, validEmail, validPhone } from "@/lib/format";
@@ -168,7 +168,7 @@ export default function BookingFlow(props: { courts: Court[]; items: EquipmentIt
               <div className="pick-courts">
                 {courts.map((c, i) => (
                   <button key={c.id} className={"pick" + (courtId === c.id ? " sel" : "")} aria-pressed={courtId === c.id} onClick={() => pickCourt(c.id)}>
-                    <Ph kind={courtArt(c.type)} tone={TONES[i % 3]} label={c.name} />
+                    <CourtImg id={c.id} type={c.type} tone={TONES[i % 3]} label={c.name} />
                     <span className="b"><b>{c.name}</b><small>{peso(c.rate)} / hr · {c.min_players}–{c.max_players} players · {c.note}</small></span>
                   </button>
                 ))}

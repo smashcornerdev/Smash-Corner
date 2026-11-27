@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import GalleryView from "@/components/site/GalleryView";
 import { PageTop } from "@/components/ui";
-import { L } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Gallery",
@@ -12,7 +11,7 @@ export const metadata: Metadata = {
 export default function GalleryPage() {
   return (
     <>
-      <PageTop eyebrow="Gallery" title="See the space" lead={L[3]} />
+      <PageTop eyebrow="Gallery" title="On the court" lead="Where the game comes to life." />
       <GalleryView />
     </>
   );

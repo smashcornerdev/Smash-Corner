@@ -11,7 +11,9 @@
 //          optional: EMAIL_FROM, EMAIL_TEST_TO, EMAIL_DRY_RUN=true   (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided)
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@4.8.0";
-import * as XLSX from "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
+// SheetJS 0.20.3, vendored: the deploy bundler can't fetch from cdn.sheetjs.com (see ../_shared/vendor/README.md)
+// @ts-types="../_shared/vendor/xlsx.d.mts"
+import * as XLSX from "../_shared/vendor/xlsx.mjs";
 import { CLASS_HEAD, COURT_HEAD, classRecord, courtRecord, type ClassRecordClass, type ClassRecordReg, type CourtRecordRow, type RecordItem } from "../_shared/records.ts";
 import { classMetrics, metrics, type ReportClosure } from "../_shared/report.ts";
 import { addDaysKey } from "../_shared/time.ts";

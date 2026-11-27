@@ -10,8 +10,8 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 delete from vault.secrets where name in ('smashcorner_cron_secret', 'smashcorner_tick_url', 'smashcorner_site_url');
-select vault.create_secret('<CRON_SECRET>', 'smashcorner_cron_secret');
-select vault.create_secret('https://<PROJECT_REF>.supabase.co/functions/v1/tick', 'smashcorner_tick_url');
+select vault.create_secret('WC1z3_QGMGuhF3XEg6UmPJ85FF3UW3rwsEbtj1xVy1c', 'smashcorner_cron_secret');
+select vault.create_secret('https://aqkmwgzluhzqrivrbqju.supabase.co/functions/v1/tick', 'smashcorner_tick_url');
 
 select cron.unschedule(jobid) from cron.job where jobname = 'smashcorner-tick';
 select cron.schedule(

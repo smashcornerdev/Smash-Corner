@@ -56,7 +56,7 @@ async function ControlsData() {
     const data: Row[] = l.map(({ k, taken, rented, notConfirmed, all, state }) => ({
       key: k.id, search: `${k.title} ${cname(k.court_id)} ${fmtDate(k.date)}`,
       cells: [
-        <Fragment key="t"><b>{k.title}</b><br /><small className="muted">{cname(k.court_id)}</small></Fragment>,
+        <Fragment key="t"><b>{k.title}</b><br /><small className="muted">{k.kind === "event" ? "Event" : "Class"} · {cname(k.court_id)}</small></Fragment>,
         <Fragment key="w">{fmtDate(k.date)}<br /><small className="muted">{fmtH(k.start_hour)} – {fmtH(k.end_hour)}</small></Fragment>,
         <small key="d">{fmtTs(k.deadline)}</small>,
         <Fragment key="n">{taken} / {k.capacity}{notConfirmed ? <><br /><small className="muted">{notConfirmed} not confirmed yet</small></> : null}</Fragment>,

@@ -44,6 +44,12 @@ export default function ClassForm({ courts, rentals, today }: { courts: { id: st
     const label = e.currentTarget.closest("label");
     if (label && !still()) segPop(label);
   };
+  const [kind, setKind] = useState<"class" | "event">("class");
+  const pickKind = (k: "class" | "event", e: React.ChangeEvent<HTMLInputElement>) => {
+    setKind(k);
+    const label = e.currentTarget.closest("label");
+    if (label && !still()) segPop(label);
+  };
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
   const r = rentals[courts.find((c) => c.id === courtId)?.type ?? ""] ?? { name: "Equipment", fee: 0, qty: 0 };
@@ -61,8 +67,17 @@ export default function ClassForm({ courts, rentals, today }: { courts: { id: st
       start(async () => { const r = await openClassAction(fd); if (r?.error) setErr(r.error); });
     }}>
       {err ? <div className="banner err" role="alert">{err}</div> : null}
+      {/* v6.55: Class → listed under Programs, Event → under Events on the Programs & Events page */}
+      <fieldset style={{ border: 0, padding: 0, margin: 0 }} className="stack"><legend style={{ fontWeight: 600, marginBottom: 10 }}>Type</legend>
+        <div className="seg">
+          <label><input type="radio" name="kind" value="class" checked={kind === "class"} onChange={(e) => pickKind("class", e)} /> Class</label>
+          <label><input type="radio" name="kind" value="event" checked={kind === "event"} onChange={(e) => pickKind("event", e)} /> Event</label>
+        </div>
+        <p className="muted" style={{ fontSize: ".86rem", margin: 0 }}>Classes show under Programs, events under Events on the Programs &amp; Events page.</p>
+      </fieldset>
       <div className="form-grid">
-        <label className="f full"><span>Title</span><input className="inp" name="title" required minLength={3} maxLength={80} placeholder="e.g. Pickleball 101: Beginners Clinic" autoFocus /></label>
+        <label className="f full"><span>Title</span><input className="inp" name="title" required minLength={3} maxLength={80} placeholder={kind === "event" ? "e.g. Pickleball Social Night" : "e.g. Pickleball 101: Beginners Clinic"} autoFocus /></label>
+        <label className="f full"><span>Description <small className="muted">(optional, shown on Programs &amp; Events)</small></span><textarea className="inp" name="description" maxLength={300} rows={2} placeholder="One or two sentences about who it is for and what to expect." /></label>
         <label className="f full"><span>Court</span>
           <select className="inp" name="courtId" value={courtId} onChange={(e) => setCourtId(e.target.value)}>{courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </label>

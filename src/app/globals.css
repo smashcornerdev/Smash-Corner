@@ -140,6 +140,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ph.t-lav{background:var(--surface-raised);color:var(--brand-lavender)}
 .ph.t-dark{background:var(--brand-violet);color:var(--brand-lime)}
 .ph.t-dark2{background:var(--brand-violet);color:var(--brand-lavender)}
+.ph.court-img{background:transparent} /* the space around a court image is left blank, showing the card's dark background (v6.66; was the images' green) */
+/* every court box has the tennis image's shape (462 × 482, v6.67): the tennis image fills it exactly, and the taller pickleball
+   images are shown at the same height (narrower, blank at their sides). The cart thumbnails use the same shape */
+.ph.court-img,.cart-item .ph.court-img{aspect-ratio:462/482}
+.court-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
 .ph-tag{position:absolute;left:10px;bottom:8px;font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 
 /* ---------- Header ---------- */
@@ -1038,14 +1043,41 @@ h1{font-weight:900}
   .main-nav a{border-radius:0;padding:.75em .8em;font-family:var(--sport);font-weight:700;font-size:clamp(1.5rem,6.5vw,2.1rem);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
   .main-nav a.on{background:none;color:var(--accent);box-shadow:inset 4px 0 0 var(--brand-chartreuse)}
 }
-/* Hero: centered on a plain black background (photo removed v4.69; set --hero-photo to url(...) to add one) */
-.hero-band{--hero-photo:none;background-image:var(--hero-photo);background-size:cover;background-position:center}
+/* Hero: transparent, so the site-wide parallax court photo shows through (v6.28; ParallaxBackground) */
+.hero-band{background:none}
+/* Parallax background photo box (spec §4; components/ParallaxBackground.tsx sets the --pbg-* values and moves it on scroll).
+   Desktop/tablet: full width at the photo's own proportions, top START above the screen. */
+.pbg-img{position:relative;width:100%;aspect-ratio:var(--pbg-ratio);background:var(--pbg-src) center/100% 100% no-repeat;transform:translateY(calc(var(--pbg-start) * -100%));will-change:transform}
+/* Phones (v6.44; own photo v6.45; fills the screen + pans top→bottom v6.48): the phone photo (--pbg-src-m) at least
+   --pbg-span-m screens tall and at least the screen's width, centred sideways (sides trimmed), its top --pbg-start-m above the screen (v6.49).
+   The script pans it up so its bottom edge meets the screen's bottom by the end of the page. No fades: it fills the screen. */
+@media (max-width:699px){
+  .pbg-img{--pbg-mh:max(100vw / var(--pbg-ratio-m), 100vh * var(--pbg-span-m));position:absolute;top:0;left:50%;height:var(--pbg-mh);
+    width:calc(var(--pbg-mh) * var(--pbg-ratio-m));margin-left:calc(var(--pbg-mh) * var(--pbg-ratio-m) / -2);aspect-ratio:auto;
+    background-image:var(--pbg-src-m);transform:translateY(max(calc(var(--pbg-start-m) * var(--pbg-mh) * -1), calc(100vh - var(--pbg-mh))))}
+  .pbg-fade{display:none}
+}
+/* Admin console (v6.59): the background photo is a bit darker there, 65% black scrim instead of the public site's 45% */
+html:has(.adm) .pbg-scrim{background-color:rgb(0 0 0 / .65)}
 /* Fit the whole hero on the first screen: fills the space under the header, and spacing + headline shrink on short screens */
 .hero-band{min-height:calc(100svh - var(--head-h) - 3px);display:grid;align-content:center}
 .hero{text-align:center;width:100%;padding-block:clamp(20px,4svh,56px)}
 .hero h1{font-size:min(clamp(1.9rem,5.4vw,4rem),7svh);margin-top:clamp(8px,1.6svh,14px)!important}
 .hero .lead{margin-top:clamp(10px,2.2svh,20px)}
 .hero>div{display:flex;flex-direction:column;align-items:center}
+/* v6.40/v6.41: from 700px up, the headline sits in the upper part of the hero and the lead + search bar + facts in the lower part,
+   leaving the middle clear so the wall mural (logo + SMASH CORNER) in the background photo shows between them.
+   ADJUST HERE: --hero-head-down = how far the headline sits down from the top, --hero-search-up = how far the search block sits
+   up from the bottom (each a fraction of the hero's height, 0 = right at the edge); --hero-gap-min = the smallest gap allowed between them. */
+@media (min-width:700px){
+  .hero-band{--hero-head-down:.15;--hero-search-up:.05;--hero-gap-min:clamp(60px,15svh,140px);align-content:stretch}
+  .hero{display:flex;--hero-h:calc(100svh - var(--head-h) - 3px);
+    padding-top:calc(clamp(20px,4svh,56px) + var(--hero-h) * var(--hero-head-down));
+    padding-bottom:calc(clamp(20px,4svh,56px) + var(--hero-h) * var(--hero-search-up))}
+  .hero>div{flex:1}
+  .hero h1{margin-bottom:var(--hero-gap-min)}
+  .hero .lead{margin-top:auto}
+}
 .hero h1{transform-origin:center}
 .hero h1 .ln:last-child{color:var(--brand-chartreuse)} /* "Play it." */
 /* "Play it." shine (spec §4): the chartreuse fill is a wide gradient with a white band, clipped to the letters; the band rests
@@ -1276,7 +1308,8 @@ html.splash-on,html.splash-on body{overflow:hidden}
 /* Programs & Events jump tabs (v5.58; PeTabs.tsx), same behavior as the Gallery tabs: the row sticks under the site header (its
    background stretched to the screen edges), one row side by side on phones with every label on one line, centered in its tab (v5.58), and a dark violet pill with a lavender outline (as on the Gallery tabs, v5.64) slides to the active tab. Layers
    in DOM order: grey tab backgrounds (.tab-slot, v5.65), then the pill, then the tabs (transparent) with their text on top. */
-.pe-tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--head-h));z-index:20;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg);clip-path:inset(0 -100vmax);padding-block:10px;margin-bottom:18px}
+/* v6.54: no background at all, even while stuck under the header (a black bar across the row read as a bug); only the tab buttons show */
+.pe-tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--head-h));z-index:20;padding-block:10px;margin-bottom:18px}
 [id^="pe-"]{scroll-margin-top:calc(var(--head-h) + 72px)}
 .pe-tabs .chips{position:relative;flex-wrap:nowrap}
 .pe-tabs .chip{position:relative;text-decoration:none;transition:color .3s ease!important}
@@ -1309,3 +1342,16 @@ html.splash-on,html.splash-on body{overflow:hidden}
 .site-head:not(:has(.main-nav.open)){transform:translateZ(0)}
 /* Gallery tabs use the same type as the Programs & Events tabs (v5.63): Lexend Deca, regular weight, .8rem (was semi-bold, .88rem) */
 .gal-tabs .gal-list button{font-family:var(--body);font-weight:400;font-size:.8rem}
+/* Gallery (v6.52): every photo from src/data/gallery.json in one masonry layout, no sections/tabs. Photos keep their own shape
+   (nothing cropped): they stack in columns, 4 on desktop, 3 on tablets, 2 on phones. Until a photo's size is known its tile holds a
+   4:3 placeholder (GalleryView adds .ok to the img as soon as it is), so lazy loading still only fetches photos near the screen.
+   The placeholder is on the tile, not the photo (v6.56): a photo that has started arriving is cropped by it, never stretched. */
+.gal-all{columns:4;column-gap:10px;padding-block:8px 64px}
+.gal-all button{all:unset;cursor:zoom-in;display:block;break-inside:avoid;margin-bottom:10px;overflow:hidden;border-radius:12px;background:var(--surface)}
+.gal-all button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+.gal-all img{width:100%;height:auto;display:block}
+.gal-all img:not([src]){color:transparent} /* no alt text showing in a tile whose photo hasn't started yet (v6.63) */
+@media (max-width:900px){.gal-all{columns:3}}
+@media (max-width:640px){.gal-all{columns:2;column-gap:8px}.gal-all button{margin-bottom:8px}}
+.lb-img{display:block;width:100%;max-height:calc(100svh - 140px);object-fit:contain}
+.teaser .teaser-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;border-radius:12px;background:var(--surface)}

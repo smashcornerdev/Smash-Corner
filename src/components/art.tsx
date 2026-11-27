@@ -29,6 +29,17 @@ export function Ph({ kind, tone, label, style }: { kind: string; tone: Tone; lab
   );
 }
 export const courtArt = (type: string) => (type === "tennis" ? "tennis" : "pickle");
+
+/** Court layout images (v6.64), by court id, in public/images/courts. Pickleball Court 1 and 2 share one framing (same size,
+ *  same layout position; only the "Court N" label differs). A court without an image keeps the placeholder art. */
+const COURT_IMG: Record<string, string> = { t1: "/images/courts/t1.png", p1: "/images/courts/p1.png", p2: "/images/courts/p2.png" };
+
+/** a court's picture: its layout image (whole, on the image's own green, never cropped) or the placeholder art */
+export function CourtImg({ id, type, tone, label }: { id: string; type: string; tone: Tone; label: string }) {
+  const src = COURT_IMG[id];
+  if (!src) return <Ph kind={courtArt(type)} tone={tone} label={label} />;
+  return <div className="ph court-img"><img src={src} alt={label} loading="lazy" decoding="async" /></div>;
+}
 export const TONES: Tone[] = ["lime", "lav", "dark"];
 
 const ICONS: Record<string, string> = {

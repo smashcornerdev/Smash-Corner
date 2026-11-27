@@ -819,8 +819,28 @@ h1{font-weight:900}
   .main-nav a{border-radius:0;padding:.7em .8em}
   .main-nav a.on{background:none;color:var(--accent);box-shadow:inset 4px 0 0 var(--brand-chartreuse)}
 }
-/* Hero: centered on a plain black background (photo removed v4.69; set --hero-photo to url(...) to add one) */
-.hero-band{--hero-photo:none;background-image:var(--hero-photo);background-size:cover;background-position:center}
+/* Hero: transparent, so the site-wide parallax court photo shows through (v6.28; #parallaxBg) */
+.hero-band{background:none}
+/* Site-wide parallax background (v6.28) */
+#parallaxBg{position:fixed;inset:0;z-index:-10;overflow:hidden;pointer-events:none}
+#parallaxBg .img{--pbg-src:url("../public/images/scbgphoto3.jpg");--pbg-ratio:1.5004;--pbg-start:.3;--pbg-src-m:url("../public/images/scbgphoto1.jpg");--pbg-ratio-m:.6665;--pbg-span-m:1.25;--pbg-start-m:0;transition:transform .4s cubic-bezier(.33,1,.68,1)}
+/* Parallax background photo box (spec §4; the script below moves it on scroll).
+   Desktop/tablet: full width at the photo's own proportions, top START above the screen. */
+#parallaxBg .img{position:relative;width:100%;aspect-ratio:var(--pbg-ratio);background:var(--pbg-src) center/100% 100% no-repeat;transform:translateY(calc(var(--pbg-start) * -100%));will-change:transform}
+#parallaxBg .img::after{content:"";position:absolute;left:0;right:0;bottom:0;height:33.33%;background:linear-gradient(to bottom,transparent,#000)}
+/* Phones (v6.44; own photo v6.45; fills the screen + pans top→bottom v6.48): the phone photo (--pbg-src-m) at least
+   --pbg-span-m screens tall and at least the screen's width, centred sideways (sides trimmed), its top --pbg-start-m above the screen (v6.49).
+   The script pans it up so its bottom edge meets the screen's bottom by the end of the page. No fades: it fills the screen. */
+@media (max-width:699px){
+  #parallaxBg .img{--pbg-mh:max(100vw / var(--pbg-ratio-m), 100vh * var(--pbg-span-m));position:absolute;top:0;left:50%;height:var(--pbg-mh);
+    width:calc(var(--pbg-mh) * var(--pbg-ratio-m));margin-left:calc(var(--pbg-mh) * var(--pbg-ratio-m) / -2);aspect-ratio:auto;
+    background-image:var(--pbg-src-m);transform:translateY(max(calc(var(--pbg-start-m) * var(--pbg-mh) * -1), calc(100vh - var(--pbg-mh))))}
+  #parallaxBg .img::after{display:none}
+}
+#parallaxBg .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+body.admin-mode #parallaxBg .scrim{background:rgba(0,0,0,.65)} /* v6.59: admin console a bit darker */
+#parallaxBg .fade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.5),rgba(0,0,0,.2),transparent)}
+@media (prefers-reduced-motion:reduce){#parallaxBg .img{transition:none}}
 /* Fit the whole hero on the first screen: fills the space under the header, and spacing + headline shrink on short screens */
 .hero-band{min-height:calc(100svh - var(--head-h) - 3px);display:grid;align-content:center}
 .hero{text-align:center;width:100%;padding-block:clamp(20px,4svh,56px)}
@@ -829,6 +849,19 @@ h1{font-weight:900}
 .hero-cta{margin-top:clamp(14px,3svh,28px)}
 .hero .quick{margin-top:clamp(14px,3svh,30px)}
 .hero>div{display:flex;flex-direction:column;align-items:center}
+/* v6.40/v6.41: from 700px up, the headline sits in the upper part of the hero and the lead + search bar + facts in the lower part,
+   leaving the middle clear so the wall mural (logo + SMASH CORNER) in the background photo shows between them.
+   ADJUST HERE: --hero-head-down = how far the headline sits down from the top, --hero-search-up = how far the search block sits
+   up from the bottom (each a fraction of the hero's height, 0 = right at the edge); --hero-gap-min = the smallest gap allowed between them. */
+@media (min-width:700px){
+  .hero-band{--hero-head-down:.15;--hero-search-up:.05;--hero-gap-min:clamp(60px,15svh,140px);align-content:stretch}
+  .hero{display:flex;--hero-h:calc(100svh - var(--head-h) - 3px);
+    padding-top:calc(clamp(20px,4svh,56px) + var(--hero-h) * var(--hero-head-down));
+    padding-bottom:calc(clamp(20px,4svh,56px) + var(--hero-h) * var(--hero-search-up))}
+  .hero>div{flex:1}
+  .hero h1{margin-bottom:var(--hero-gap-min)}
+  .hero .lead{margin-top:auto}
+}
 .hero h1{transform-origin:center}
 .hero h1 .ln:last-child{color:var(--brand-chartreuse)} /* "Play it." */
 .hero .lead{margin-inline:auto}
@@ -899,6 +932,16 @@ h1{font-weight:900}
 .mode-sw button,.mode-sw .c{border-radius:999px}
 .gal-tabs button{border-radius:999px}
 .gal-tabs button.on{box-shadow:inset 0 0 0 2px var(--brand-lavender)}
+/* Gallery (v6.52): one uncropped masonry layout of all photos, no sections/tabs; 4:3 placeholder until a photo loads */
+.gal-all{columns:4;column-gap:10px;padding-block:8px 64px}
+.gal-all button{all:unset;cursor:zoom-in;display:block;break-inside:avoid;margin-bottom:10px;overflow:hidden;border-radius:12px;background:var(--surface)}
+.gal-all button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+.gal-all img{width:100%;height:auto;display:block}
+.gal-all img:not(.ok){aspect-ratio:4/3}
+@media (max-width:900px){.gal-all{columns:3}}
+@media (max-width:640px){.gal-all{columns:2;column-gap:8px}.gal-all button{margin-bottom:8px}}
+.lb-img{display:block;width:100%;max-height:calc(100svh - 160px);object-fit:contain}
+.teaser .teaser-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;border-radius:12px;background:var(--surface)}
 .tbl th,.cal th{font-family:var(--sport);font-size:.88rem;letter-spacing:.1em}
 /* Forms and calendar cells: softer corners */
 .inp,select.inp,textarea.inp{border-radius:var(--r-sm)}
@@ -1140,6 +1183,18 @@ window.SplashCtl={seek:function(ms){cancelAnimationFrame(raf);render(Math.max(0,
   </div>
 </header>
 
+<div id="parallaxBg" aria-hidden="true"><div class="img"></div><div class="scrim"></div><div class="fade"></div></div>
+<script>
+/* Site-wide parallax background (v6.28; whole photo by the bottom v6.30; 30% start v6.32; photo3 + 20% start v6.33; full width v6.35; PNG v6.36; starts at the top v6.37; new JPG v6.38; 30% start + darker v6.39; phone framing v6.44; phone photo v6.45; whole photo on phones v6.46; scbgphoto1 on phones v6.47; fills + pans on phones v6.48): the photo drifts up as the page scrolls; still with reduced motion */
+(function(){
+  var el=document.querySelector('#parallaxBg .img');
+  if(!el||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  var f=0;
+  function upd(){f=0;var s=document.documentElement.scrollHeight-innerHeight;var p=s>0?Math.min(Math.max(scrollY/s,0),1):0;var h=el.offsetHeight,v=innerHeight,a,b;if(matchMedia('(max-width:699px)').matches){b=Math.min(v-h,0);a=Math.max(-0*h,b);}else{a=-h*.3;b=Math.min(v-h,a-h*.15);}el.style.transform='translateY('+(a+p*(b-a))+'px)';}
+  function sch(){if(!f)f=requestAnimationFrame(upd);}
+  upd();addEventListener('scroll',sch,{passive:true});addEventListener('resize',sch);
+})();
+</script>
 <main id="app"></main>
 
 <footer class="site-foot">
@@ -1147,9 +1202,9 @@ window.SplashCtl={seek:function(ms){cancelAnimationFrame(raf);render(Math.max(0,
     <div class="foot-grid">
       <div class="stack">
         <a href="#home" class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">SMASH<br>CORNER</span></a>
-        <p class="muted">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Tennis and pickleball courts in Quezon City.</p>
+        <p class="muted">Tennis and pickleball courts in Quezon City. Book online, rent equipment on site and play from 7 AM to 10 PM daily.</p>
       </div>
-      <div><h4>Visit</h4><ul><li>Lorem Ipsum St., Quezon City</li><li>Daily 7:00 AM – 10:00 PM</li><li>(02) 8000 0000</li><li>hello@smashcorner-qc.com</li></ul></div>
+      <div><h4>Visit</h4><ul><li>98 Maria Clara St. corner Sto. Domingo Ave., Quezon City</li><li>Daily 7:00 AM – 10:00 PM</li><li>(02) 8332 1900</li><li>smash.corner2026@gmail.com</li></ul></div>
       <div><h4>Explore</h4><ul><li><a href="#courts">Courts</a></li><li><a href="#gallery">Gallery</a></li><li><a href="#programs">Programs &amp; Events</a></li></ul></div>
       <div><h4>Help</h4><ul><li><a href="#book">Book a Court</a></li><li><a href="#faq">FAQ</a></li><li><a href="#policy">Booking Policy</a></li><li><a href="#contact">Contact</a></li><li class="p2"><a href="#account">My Account</a></li><li><a href="#admin">Admin Login</a></li></ul></div>
     </div>
@@ -1208,8 +1263,8 @@ document.documentElement.dataset.phase=PHASE;
 const KEY='smashcorner-demo-v2'+(PHASE===2?'-p2':'');
 /* Phase 2: multi-branch. Each branch keeps its own data (bookings, classes, closures, payment methods, inventory, reports, log, emails). */
 const BRANCHES=[
-  {id:'qc',name:'Smash Corner QC',short:'QC',addr:'Lorem Ipsum St., Quezon City'},
-  {id:'b2',name:'Smash Corner Lorem (dummy)',short:'Lorem',addr:'Dolor Sit Ave., Lorem City (dummy address)'}
+  {id:'qc',name:'Smash Corner QC',short:'QC',addr:'98 Maria Clara St. corner Sto. Domingo Ave., Quezon City'},
+  {id:'b2',name:'Smash Corner Marikina',short:'Marikina',addr:'Gil Fernando Ave., Marikina City'}
 ];
 let BR='qc';
 if(PHASE===2){try{const b=localStorage.getItem('sc-branch');if(BRANCHES.some(x=>x.id===b))BR=b;}catch(e){}}
@@ -1225,14 +1280,6 @@ const BMETHODS={b2:[
   {id:'mb',name:'Metrobank',acct:'111-2-22233-3',kind:'Bank transfer / InstaPay'}
 ]};
 const SENDER='noreply@smashcorner-qc.com';
-const L=[
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-  'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-  'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-  'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-  'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.',
-  'Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.'
-];
 
 /* ================= HELPERS ================= */
 const $=(s,r=document)=>r.querySelector(s);
@@ -1296,17 +1343,17 @@ function seedClasses(s){
   let pi=0;const methods=['gcash','maya','bdo','bpi'];
   const mk=(o,regs)=>{const w=slot(o.court,o.day,o.pref,o.len);if(!w)return null;
     const start=parseKey(w.date).getTime()+w.start*3600e3;
-    const k={id:uid(),title:o.title,court:o.court,date:w.date,start:w.start,end:w.end,deadline:o.dl!=null?o.dl(start):parseKey(w.date).getTime()-6*3600e3,capacity:o.cap,fee:o.fee,rentalFee:o.rentFee==null?null:o.rentFee,rentalQty:o.rentQty||0,status:o.status||'open',createdBy:o.by||'Admin One',createdAt:Math.min(now,start)-9*86400e3};
+    const k={id:uid(),kind:o.kind||'class',desc:o.desc||'',title:o.title,court:o.court,date:w.date,start:w.start,end:w.end,deadline:o.dl!=null?o.dl(start):parseKey(w.date).getTime()-6*3600e3,capacity:o.cap,fee:o.fee,rentalFee:o.rentFee==null?null:o.rentFee,rentalQty:o.rentQty||0,status:o.status||'open',createdBy:o.by||'Admin One',createdAt:Math.min(now,start)-9*86400e3};
     s.classes.push(k);
     regs.forEach((st,i)=>{const p=o.people?o.people[i%o.people.length]:people[(pi++)%people.length];const rent=k.rentalFee!=null&&i%3===0;
       s.regs.push(payState({id:uid(),ref:'CL-'+(s.cseq++),classId:k.id,name:p[0],nick:p[1],age:p[2],email:p[0].toLowerCase().replace(/ /g,'.')+'@example.com',phone:'09'+(17+i%10)+' '+(100+i*37)%900+' '+(1000+i*413)%9000,rent,method:methods[i%4],payRef:'REF-'+(40000000+i*7919+k.capacity*131),proof:null,total:k.fee+(rent?k.rentalFee:0),status:st,createdAt:k.createdAt+(i+1)*5*3600e3,reason:st==='rejected'?'Amount paid does not match the total.':st==='cancelled'?'Class cancelled by Smash Corner':'',refund:st==='rejected'||st==='cancelled'?100:null}));});
     return k;};
   const A='approved',Pd='pending';
-  mk({title:'Pickleball 101: Beginners Clinic',court:'p1',day:4,pref:9,len:2,cap:12,fee:500,rentFee:100,rentQty:8},[A,A,A,A,A,'verify',Pd,'rejected']);
-  mk({title:'Junior Tennis Clinic (Ages 7–15)',court:'t1',day:6,pref:8,len:2,cap:8,fee:800,rentFee:150,rentQty:6,people:[['Sofia Bautista','Sofi',12],['Gabriel Aquino','Gab',10],['Mika Dizon','Mika',14],['Nico Valdez','Nico',9]]},[A,A,A,'awaiting']);
-  mk({title:'Pickleball Social Night: Doubles Mixer',court:'p2',day:9,pref:18,len:3,cap:8,fee:350,rentFee:100,rentQty:6},[A,A,A,A,A,A,'verify',Pd]);
+  mk({title:'Pickleball 101: Beginners Clinic',desc:'Learn the rules, scoring and core shots in a relaxed setting. Paddles are available to rent.',court:'p1',day:4,pref:9,len:2,cap:12,fee:500,rentFee:100,rentQty:8},[A,A,A,A,A,'verify',Pd,'rejected']);
+  mk({title:'Junior Tennis Clinic (Ages 7–15)',desc:'Footwork, stroke basics and match play in small groups, at a pace that keeps young players engaged.',court:'t1',day:6,pref:8,len:2,cap:8,fee:800,rentFee:150,rentQty:6,people:[['Sofia Bautista','Sofi',12],['Gabriel Aquino','Gab',10],['Mika Dizon','Mika',14],['Nico Valdez','Nico',9]]},[A,A,A,'awaiting']);
+  mk({kind:'event',title:'Pickleball Social Night: Doubles Mixer',desc:'Rotating doubles for players of all levels. Come solo or with a partner and we will pair you up.',court:'p2',day:9,pref:18,len:3,cap:8,fee:350,rentFee:100,rentQty:6},[A,A,A,A,A,A,'verify',Pd]);
   mk({title:'Adult Tennis Drills (Intermediate)',court:'t1',day:12,pref:7,len:2,cap:6,fee:600,status:'closed',by:'Admin Two'},[A,A]);
-  mk({title:'Lorem Ipsum Pickleball Open Play',court:'p1',day:-5,pref:16,len:3,cap:10,fee:300,rentFee:100,rentQty:6,dl:t=>t-2*86400e3},[A,A,A,A,A,A,A]);
+  mk({title:'Friday Pickleball Open Play',court:'p1',day:-5,pref:16,len:3,cap:10,fee:300,rentFee:100,rentQty:6,dl:t=>t-2*86400e3},[A,A,A,A,A,A,A]);
   const c=mk({title:'Rainy Day Footwork Clinic',court:'p2',day:7,pref:15,len:2,cap:10,fee:400,by:'Admin Three'},['cancelled','cancelled']);
   if(c)c.status='cancelled';
 }
@@ -1501,7 +1548,7 @@ function equipAvail(item,date,slots,opt){
 function bookingRows(b){
   return '<table><tr><td>Reference</td><td><b>'+esc(b.ref)+'</b></td></tr><tr><td>Court</td><td>'+esc(court(b.court).name)+'</td></tr>'+(b.coach&&coachOf(b.coach)?'<tr><td>Coach</td><td>'+esc(coachOf(b.coach).name)+' ('+peso(b.coachRate)+' / hr)</td></tr>':'')+'<tr><td>Date</td><td>'+esc(fmtDateLong(b.date))+'</td></tr><tr><td>Time</td><td>'+esc(fmtRange(b.slots))+'</td></tr><tr><td>Players</td><td>'+b.players+'</td></tr><tr><td>Equipment</td><td>'+esc(equipText(b.equip))+'</td></tr><tr><td>Total</td><td><b>'+peso(b.total)+'</b></td></tr></table>';
 }
-const FOOT='<div class="em-foot">To cancel or reschedule, contact us: (02) 8000 0000 · hello@smashcorner-qc.com. Online cancellation is not available.<br>Smash Corner · Lorem Ipsum St., Quezon City · smashcorner-qc.com</div>';
+const FOOT='<div class="em-foot">To cancel or reschedule, contact us: (02) 8332 1900 · smash.corner2026@gmail.com. Online cancellation is not available.<br>Smash Corner · 98 Maria Clara St. corner Sto. Domingo Ave., Quezon City · smashcorner-qc.com</div>';
 function sendEmail(o){
   S.emails.unshift({id:uid(),to:o.to,subject:o.subject,body:o.body,at:Date.now(),read:false,kind:o.kind||'customer'});
   updateBadges();
@@ -1751,7 +1798,7 @@ const isOpen=()=>!!$('#overlay').firstChild;
 const TITLES={home:'Tennis & Pickleball Courts in Quezon City',courts:'Courts',book:'Book a Court',gallery:'Gallery',programs:'Programs & Events',events:'Programs & Events',faq:'Contact',contact:'Contact',cart:'Your Cart',pay:'Booking Request',payment:'Payment',done:'Request Sent',policy:'Booking Policy',admin:'Admin Console'};
 function pageTop(eyebrow,title,lead){return '<section class="wrap page-top"><p class="eyebrow">'+eyebrow+'</p><h1 class="rise" style="margin-top:10px">'+title+'</h1>'+(lead?'<p class="lead">'+lead+'</p>':'')+'</section>';}
 function courtCard(c,i){
-  return '<article class="badge court-card rv"><div class="in">'+ph(courtArt(c),['lime','lav','dark'][i%3],c.name+' photo')+'<div class="body"><h3>'+c.name+'</h3><div class="meta"><span>'+c.min+'–'+c.max+' players · '+c.surface+'</span></div><p class="muted" style="font-size:.86rem;margin:2px 0 0">'+c.note+'</p><div class="price">'+peso(c.rate)+'<span class="muted" style="font-family:var(--body);font-size:.85rem"> / hour</span></div><p class="muted" style="font-size:.9rem">'+L[i%L.length]+'</p><button class="btn btn-ghost btn-sm" data-act="book-court" data-id="'+c.id+'">Book this court</button></div></div></article>';
+  return '<article class="badge court-card rv"><div class="in">'+ph(courtArt(c),['lime','lav','dark'][i%3],c.name+' photo')+'<div class="body"><h3>'+c.name+'</h3><div class="meta"><span>'+c.min+'–'+c.max+' players · '+c.surface+'</span></div><p class="muted" style="font-size:.86rem;margin:2px 0 0">'+c.note+'</p><div class="price">'+peso(c.rate)+'<span class="muted" style="font-family:var(--body);font-size:.85rem"> / hour</span></div><p class="muted" style="font-size:.9rem">'+(c.type==='tennis'?'Regulation dimensions and a consistent bounce, suited to singles, doubles and coaching drills.':'Official dimensions on a cushioned surface that is easier on the knees. Ideal for doubles and open play.')+'</p><button class="btn btn-ghost btn-sm" data-act="book-court" data-id="'+c.id+'">Book this court</button></div></div></article>';
 }
 function vHome(){
   const tick='<span>Tennis</span><span>Pickleball</span><span>Open 7 AM daily</span><span>Book online</span><span>Rent equipment</span><span>Quezon City</span>';
@@ -1759,67 +1806,69 @@ function vHome(){
   '<div class="hero-band"><section class="hero wrap"><div>'+
     '<p class="eyebrow rise">Tennis · Pickleball · Quezon City</p>'+
     '<h1 style="margin-top:14px"><span class="ln rise" style="--d:.05s">It all begins with a ball.</span><span class="ln l rise" style="--d:.18s">Life’s a court.</span><span class="ln rise" style="--d:.31s">Play it.</span></h1>'+
-    '<p class="lead rise" style="--d:.45s">'+L[0]+'</p>'+
+    '<p class="lead rise" style="--d:.45s">Tennis and pickleball courts in Quezon City. Book in under a minute.</p>'+
     '<div class="row hero-cta rise" style="--d:.55s"><a href="#book" class="btn btn-lime pulse">Book a Court</a><a href="#courts" class="btn btn-ghost">See the Courts</a></div>'+
     '<form class="quick rise" style="--d:.65s" id="quickBook"><label class="f"><span>Court</span><select class="inp" id="qbCourt">'+COURTS.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join('')+'</select></label><label class="f"><span>Date</span><input class="inp" type="date" id="qbDate" min="'+today()+'" max="'+maxKey()+'" value="'+dkey(addDays(1))+'"></label><button class="btn btn-lav" type="submit">See open times</button></form>'+
   '</div></section></div>'+
   '<div class="ticker" aria-hidden="true"><div class="ticker-track">'+tick+'</div></div>'+
   /* S1 Courts preview */
-  '<section class="sec wrap"><div class="sec-head"><div class="stack"><p class="eyebrow">Our Courts</p><h2>Three courts. One corner.</h2><p class="lead">'+L[1]+'</p></div><a href="#courts" class="btn btn-ghost btn-sm">Court details</a></div><div class="g3">'+COURTS.map(courtCard).join('')+'</div></section>'+
+  '<section class="sec wrap"><div class="sec-head"><div class="stack"><p class="eyebrow">Our Courts</p><h2>Three courts. One corner.</h2><p class="lead">A full-size tennis court and two pickleball courts, each bookable by the hour from 7 AM to 10 PM.</p></div><a href="#courts" class="btn btn-ghost btn-sm">Court details</a></div><div class="g3">'+COURTS.map(courtCard).join('')+'</div></section>'+
   /* S2 Why us */
   '<section class="sec wrap" style="padding-top:0"><div class="sec-head"><div class="stack"><p class="eyebrow">Why Smash Corner</p><h2>Why choose us</h2></div></div><div class="g4">'+
-    [['bolt','Book in minutes'],['cal','Open 7 AM daily'],['light','Night lights'],['shield','Verified bookings']].map((x,i)=>'<div class="feat rv">'+IC[x[0]]+'<h3>'+x[1]+'</h3><p class="muted">'+L[(i+2)%L.length]+'</p></div>').join('')+'</div></section>'+
+    [['bolt','Book in minutes','Pick a court, date and time online and send your request. No account or phone call needed.'],['cal','Open 7 AM daily','Courts run from 7:00 AM to 10:00 PM every day, so early sessions and after-work games both fit.'],['light','Night lights','Every court is fully lit until closing, giving evening players clear sight lines from baseline to net.'],['shield','Verified bookings','Our team checks each request and confirms it by email, so your slot is ready when you arrive.']].map(x=>'<div class="feat rv">'+IC[x[0]]+'<h3>'+x[1]+'</h3><p class="muted">'+x[2]+'</p></div>').join('')+'</div></section>'+
   /* S3 Gallery teaser */
   '<section class="sec wrap" style="padding-top:0"><div class="sec-head"><div class="stack"><p class="eyebrow">Gallery</p><h2>Take a look around</h2></div><a href="#gallery" class="btn btn-ghost btn-sm">Full gallery</a></div><div class="teaser">'+
-    GAL.map((g,i)=>'<button data-act="go-gal" data-id="'+g.id+'" class="rv">'+ph(g.kind,['lav','dark','lime','dark2'][i],g.name)+'<span class="cap">'+g.name+' '+AH()+'</span></button>').join('')+'</div></section>'+
-  /* S4 Testimonials */
-  '<section class="sec wrap" style="padding-top:0"><div class="sec-head"><div class="stack"><p class="eyebrow">Testimonials</p><h2>Players say</h2></div></div><div class="g3">'+
-    ['Juan D.','Maria S.','Pedro R.'].map((n,i)=>'<blockquote class="quote rv" style="margin:0"><span class="stars" aria-label="5 stars">★★★★★</span><p>“'+L[(i+3)%L.length]+'”</p><footer><strong>'+n+'</strong>'+['Pickleball regular','Tennis player','Weekend league'][i]+'</footer></blockquote>').join('')+'</div></section>'+
-  /* S5 CTA */
-  '<section class="wrap" style="padding-bottom:40px"><div class="cta-band dk rv"><div class="stack" style="gap:10px"><h2>Ready to play?</h2><p>'+L[4]+'</p></div><a href="#book" class="btn btn-lime">Book a Court</a></div></section>';
+    GAL.slice(0,4).map((id,i)=>'<button data-act="go-gal" class="rv" aria-label="Gallery photo '+(i+1)+'"><img class="teaser-img" src="'+galImg(id,600)+'" alt="Smash Corner photo '+(i+1)+'" loading="lazy" referrerpolicy="no-referrer"></button>').join('')+'</div></section>'+
+  /* S4 CTA */
+  '<section class="wrap" style="padding-bottom:40px"><div class="cta-band dk rv"><div class="stack" style="gap:10px"><h2>Ready to play?</h2><p>Choose your court and time online. We will email you as soon as your request is approved.</p></div><a href="#book" class="btn btn-lime">Book a Court</a></div></section>';
 }
 function vCourts(){
-  return pageTop('Courts','Pick your surface',L[1])+
-  '<section class="sec wrap" style="padding-top:28px"><div class="g3">'+COURTS.map((c,i)=>'<article class="badge court-card rv"><div class="in">'+ph(courtArt(c),['lime','lav','dark'][i],c.name)+'<div class="body"><h3>'+c.name+'</h3><dl class="spec"><dt>Surface</dt><dd>'+c.surface+'</dd><dt>Size</dt><dd>'+c.size+'</dd><dt>Players</dt><dd>'+c.min+'–'+c.max+'</dd><dt>Lights</dt><dd>Until 10:00 PM</dd><dt>Rate</dt><dd class="lime">'+peso(c.rate)+' / hour</dd><dt>Note</dt><dd>'+c.note+'</dd></dl><button class="btn btn-ghost btn-sm" data-act="book-court" data-id="'+c.id+'">Book this court</button></div></div></article>').join('')+'</div></section>'+
+  return pageTop('Courts','Pick your surface','One tennis court and two pickleball courts, all lit for evening play. Compare player limits and rates, then book the one that suits your game.')+
+  '<section class="sec wrap" style="padding-top:28px"><div class="g3">'+COURTS.map((c,i)=>'<article class="badge court-card rv"><div class="in">'+ph(courtArt(c),['lime','lav','dark'][i],c.name)+'<div class="body"><h3>'+c.name+'</h3><dl class="spec"><dt>Players</dt><dd>'+c.min+'–'+c.max+'</dd><dt>Lights</dt><dd>Until 10:00 PM</dd><dt>Rate</dt><dd class="lime">'+peso(c.rate)+' / hour</dd><dt>Note</dt><dd>'+c.note+'</dd></dl><button class="btn btn-ghost btn-sm" data-act="book-court" data-id="'+c.id+'">Book this court</button></div></div></article>').join('')+'</div></section>'+
   '<section class="sec wrap" style="padding-top:0"><div class="sec-head"><div class="stack"><p class="eyebrow">Facilities & Amenities</p><h2>Everything off court</h2></div></div><div class="g3">'+
-    [['park','Parking'],['shower','Shower & Bathrooms'],['lock','Lockers'],['cup','Drinks & Snacks'],['wifi','Free Wi-Fi'],['seat','Waiting Lounge']].map((a,i)=>'<div class="amen rv">'+IC[a[0]]+'<div><h4>'+a[1]+'</h4><p class="muted" style="font-size:.9rem;margin-top:4px">'+L[i%L.length].slice(0,70)+'.</p></div></div>').join('')+'</div></section>';
+    [['park','Parking','On-site parking for players and guests during your booking.'],['shower','Shower & Bathrooms','Clean showers and restrooms to freshen up after a game.'],['wifi','Free Wi-Fi','Complimentary Wi-Fi across the courts and lounge.'],['seat','Waiting Lounge','A shaded seating area to rest between games or watch a match.']].map(a=>'<div class="amen rv">'+IC[a[0]]+'<div><h4>'+a[1]+'</h4><p class="muted" style="font-size:.9rem;margin-top:4px">'+a[2]+'</p></div></div>').join('')+'</div></section>';
 }
-const GAL=[{id:'pickleball',name:'Pickleball Courts',kind:'pickle'},{id:'tennis',name:'Tennis Courts',kind:'tennis'},{id:'bathroom',name:'Bathroom',kind:'bath'},{id:'amenities',name:'Amenities',kind:'amen'}];
-const TONES=['lime','dark','lav','dark2','dark','lime'];
-function galList(){const out=[];GAL.forEach(g=>{for(let i=0;i<6;i++)out.push({g,i,tone:TONES[(i+GAL.indexOf(g))%6]});});return out;}
-/* Gallery: all 4 sections on one page. Each section is exactly one screen tall, so a tab jump shows the whole section without scrolling. */
+/* Gallery photos (v6.52): Google Drive file ids from the client's public folder (same list as src/data/gallery.json); no sections */
+const GAL=['17QV9DG638dpOt2FrAZ3MD8htyx0MpMzO','1UEqH6mQ_2z_K9BqLgoXJkSFryXdlNLYe','11d5Uu8zETYbBS8W_i-mrZw-OXrwG7y4v','1PvD96eebPDh89qXPiA7deo4BDGpQvasN','1eHkX5OI0VWFTbieoBy5y7wko8Ynr1p_V','1pfw6onN23Po-CtAxBzfXYC1O546CxKbj','1ruTpfXizrpdrpj0bgMbs-MllF-yegSC3','1wWuwpiY88bdhDW6c4c7RwtGUGtBeah0I','1nGIfAvYB15_FjwaAPPKDzF446Mtspznu','1i2ImtmPlXq-jfcSy3TIzP99jbOW8y50z','1cXrInN1xehieC3A-ZfXUMYvSVUNXFMPU','1jvbUfGytHX82HGLpaDxthLcoy9aBVySg','1KW0j3-2_YjVNlJZ7kMT7C_D3jpSSz8xN','1pQkLzzVqCSzyOMj9t_FLb3tTrKmk6TmA','1jYmIO09Ijfa4qfVDaC0GMn-Tjl-J6qHb','1EyVydhnI5YP0BjeAHwDx_gv9VJvSufS1','1r0kY88-hlkIuNYf4H3n2hKFgA3xu48oc','1YZV6LNEJKtK0PZkbtwk6qsUOENhk27OJ','14-OrLxTGm-FpoRFekfuQxoKkOAI1zYZY','1VSlqI83uOUsKo4ccTK5Pz1rclHEHZL1L','1ZZ4Lr8Fb7CKJerSttTGVKssXwM6oyivw','1_uZUCMsCdvFf4Y6_6zo0lP3-7yVjTF5I','1MMUOpHjyy4S3R_qaiKasnaqBmp0sWlQO','19eaT-OzZvCFrGwreQC40unEjT5CK3MHJ','1J9NdcpGgfhOe2vy9Fd-_QHq6O16dsjGN','1VTYd_p6QpYOnRC4eGI1bCtQhrHKuwDK1','1yujDGviDPIECwyuZqzZCr0CEbqeC3iPV','12bjCUKvVfgQKDF1T3MQwNTwjAVMa6feq','11sEIEQ5EFVRvcmncJpATR-wvVh3DTSVA','1je_qGBiOGKDzaqU18BBiTvPu_Bo4uH9e','1xHYi0ASGhGoBRywo5T2Sx6Nlcc4zNOhh','137ENMHy1zaJl9bB3O2a5TT9_iBj7fRv3','1ux-hdYDCiGqbn88dxdDRh1OYKEGUzbZY','1n24Fzo11YzksbZJetTD-XTlwr-LkcWgG','1kA--ggfCOEgvbeQh0E8qJlkxjo53avE0','1yHMNPQr26luhPZmSiw5-gtObSD66g5F5','1W9kTS0Jxt5WzRwKdSkT2s4lY94Guux5N','1RUXDpdQEVoHeD2mN-GJCq-WLH6VQMWjX','1AM3-E-Jbmyl7w73EQDsPf7BWQZp0xjuc','1NTPGcn6xatID0vZ3OPGcLqfQW-MZChOb','1TxXJnxO-C5vf045AzHO0-7J-vvGnv3E1','1JEPjG9TcxQEQYKxVXaOu1UqUx_a9tgh1','1Z3tmIq80NrBDP68jEscM42oN362FlGq_','1gkXlqiN78g2gHU2-hsvC7VF_8EGoprKI','1bkR97WuwF0Q6LsRRnnDE33eFyhVqLUnd','1E9H_Izq3aE4ZH0Sv_ioHjih03KChMNV9','1NFppzoZcKbxhS4Dr17pqdEOE1OCkhp5a','1h2Qy2nKmIXKx9IesCvCJSRktpTL80WZo','1kdNNviwksQEruWDzEGT473ItD-E51CGt','1CIdKsECY3vI28U7GAmkyaZcHbm2QWLUO','1ANvdw5O7lCzpuQqxTIjUDiXhFQGO2ZBJ','1rgqN_OFyR1UEIyHOm1W-q0mTL8YAFHqJ','17T39Ov0O3mAu9cosBCQcRjd8qoQ3AnmG','19ceypzOcUEH8F1f2kDXvDkJ7B0uaG5sT','1JyIue7jJm9yniS952Y7JR3Hg9hO91YMP','1GBwS5lzy99Cxaa2TuddeAdnvKaylS5tn','1xbbwjZva-JPDlqaRMjaPLbU8aURkTHzE','1WdeoDMSNyBSyKclnEsLXyXr-14T5Q1nF','1c_iR4nVzVYm8W46fb2NnlXNEkpfQBZ8_','19Y3j2H4k6jFcd82_oKnR2IvR9tPtwcEz','1fKpytzWjB2Af7lQ21tUjaJvIbD91Pjh2','1xEgHRc-CzrDtAJG54NhrTvPzDGyuapq3','1TS0ZqwzT3LP8R4JIr1-Sy98dOUiNTGpo','1hT07W0zSlXQFYZbem3lGMdBbIJ1vWLK0','1gI7FSCtQerlzB6vaczM7kYqPB9uMUf0s','1pSp1DgcCClnlCZ2gLvcFvM88kueORW0y','1rHnlJYv6AWIyxvB6adOfpg-KiOjmZrsD','1HUA3dzS98-OEyoxJPVFTV_5S-_DZTDfn','1gDgg_lmiE_HE0EoE-C3bm39BbXmyh7n6','1sDywHODM_RQFgJuYGCHAIPVA-oyCZyd8','12SlBuIjcgV5DVHZmAMuveHZBe5QOLsri','1Mm6xBxmCln3Vb2eokQdun0L90Tp2fIxl','1nxSgEqjuvK9jAOMA1cwss-em71D4CbVR','1oBdoV2wWbtgVZ2ysU3clC4gdOnEtiGiC','1xhpDDWENLqXd0yI5_Wpi-GjzNDTKgk2-','1nqaPE9DA1ntWcfEDpr3Hi5iDs_6jllyO','1OQLxs19gHq6mLC7mCm1a4a3LfIgGGZbw','1ueDXahyQ-DUrO5FfaCpKC9Ndpxepznme','16-5UtNj0dBj8xtaqbWugK9DiihXmF-9z','1I8aaViCBjdOsuNrL1EcP87FG_4f1hOax','15i53m9BeOsdokHLxUvyw9I1emrGmv0MV','1AV1Lcbe1C2Me6l9N1t91-DuVpK6ssw60','17w8xmb83fEBY9t-5fe9YPLTjDuEX2RhU','1ft_Px8_VLFGrnToFOlrZOfnufFbc5vtt','158VfOj6PB-GatNKArr_dTvu40NDarjSo','1Pm5R1rlUuVsCchhw90xv4NeSzkWalfwT','1qt_3GS9c4L3qAUIrf2ds9mc5FEoEIbow','1bt4yPKWKjuIFMl7v_60jZY3Ub1cvQT4l','1SbREQQg-aZvvae5XXwdhDtPk4IhTyYts','1XFAxNLnDfKR_AXpHW55rmISrZilu0Faz','1GAzTa_6XM9ZtJhj0_0sgnkwMjuhkCGr8','1eeA0dFhPL0LazN_iWg42iO41fgIBeIUq','11G0feQWzVect_fu7bs8T9MxTs4SkdGKB','1kn8EhES1COWx7hnZ3LTRcu39bwPOFzTr','1_ytkc-SYXkpMl3Wjv7NfY6zAbHkm-AwR','11BwswY0jA0CX284FsQzj3rQXEKuhuIxE','1-nQyX1ShSAmoDdtjNCFZ4PTnuRDdD03c','1NfgVuEdqs2YVGnyfr0nSte9RcbBoVS6O','1oNmULu8RJfq0eUEuVcBzimoP4CKZEPMw','10R7aaC6QD7NCE5h3M8xHFxOTBJu_p32I','1jgJHL9cB8N4iuMEPIZhq3tHJjkdijZEy','1lPqEZql2RQF7o8cNzHhKOYVgzYHwXvx9','1h0Qg5tzKZ-8_4d8w5reEgTaZRXt45Ged','1bhCNl_lDVWhTr_DittlcgMhXYTkiezFD','1AeGomAaivNM1nWS4R6uaJG1RZRqj0Mnn','16i4ZFdxiUfrwjTIcMNSITRX4EJKpmZoL','1uI9vl-7FZSdB_ROtc32w98Aq1To8OZtl','1ceLkXdVSVvYTsTexAE_qPY4WWOLTDfvt','1IodgyF1YkHsKtT5eIHdBl-fakCDWeqfS','1M1V1xuX5LlDX71LQFuiNMIYz0qLTrud1','1VDNDrl6-pRbhDowq71TeP-R-yvJhPFKf','1tv19pTsHG6lVEvP9BFqW1tOBvWOmfFpR','1oPhUYycd6ObpqtaRzU96E3DrCTTO6i1u','1TgWlh2MJXqK3do2LqmDA2ZRcTVQT_PD5','1RyhwZDvdfHjcJZyrA9WX_ZILNkKJpvc1','1dOt3xSbGWmnuqi5Z84OhkwKP9cNgMbH5','1R6Y4pFRJo1qH8iTeQ7z_S308pRGqQZ7q','1sHSQdqkpIOuhlfCrc1PRu7oSXfumtCOe','1QtSNeck7XDE4GY_o8ljNIyMgJlKqPmAd','1-nBO_-BgXgABsCwgvR1MTzXrOaXyMKY-','1hsL9hQhYtzYkyoNfindvgrxXUjEdEche','1ceU0FXc_jSaKE2s0MVxWxkntDoRIGLSW','1qeg_rOlz2KWcNtDYYNR9birxB5PM5DSw','1NRmX4yJ_RkRjEA6vMpwU9N6fPd2i0lrF','1oupt93nj5iqYUSMK_1wel8I3QtWR9WWf','1Jg5AeZEEe1LN7sp2mN70k3r5YqOeRR9B','1eIkWi1MVOLSKrvPfD36oDsyq_wvgAs1h','1SgS5vWbweTB7PH0EcHNmiaAvQ2ENSMke','18ZyzPOJYW344QbiiD4l3WiI9tsyEg87a','1-0WLuFDA2K43zC_AXrASkd_JTKs2YBki','1xNBCOq4KcfuCi1o2zBIX-ZuXa8bmOHyB','11CG_TZ0CXhbCivwIi8H-I51I6E5bFXyb','130myNrnI8t_kkezs9Cw1Ks7GQg3Py4LA','14XjYNGczCat0e1Dxn3I1qTOIfmTh-zqK','1CIZVASMpwMfWQDYUkdJl3ZuU4ARbMPET','1YiAzN3O2dEoLG_Dc_QRUfPVEsofa76dX','1McSTFIJ6Eu5A_TxfGN8uz5cFovK9UoPY','1v7WBcw-ZT_htBpWqF44uIEqkIgc7wBS_','1_KiokwAKNUAI5DJC2IE4YMTkWCzx1tu5','1N9ZffkuDcIZy-l2sbQjNdI4FkV5vUeBb','1L9Vshqim-Z4qqcQivsW6euTjJm0umLwC','144CNO_7KPX690uzYmd3NCJfYaOvEayPy','1GYSpxvnH5NRIkD3xt4W69Vq9GuoGUtxi','17p332TvTqxTbKG04CZLKk65erra92H8T','1P-rtvVisEh-w1j8J-QIAM1mJpQcDWmRS','1JPTbG22i88kvQJqHCfNniDap5dormOF9','1osye2q_AdVWyrRPq8qm-x38-cqtaLMy-','1I3s7mdDnMbllcMQzmyqU2A9TrMZ0hNjO','1fERJUsLTFmAtiVJVcn7w5JAe6GQLYpM9','1MBOgL7zA9BKKuz2Pzx_G-DMBCRPCaL4K','1f9rcjmJT1rzwF0rGVdWaSeLULBP2dTJt','1-g5qVJsfJPvuMwmLLyx47b5SFjdA6QL5','1bu8UgiICCe9xOhChKjFiV9nTlPACiKcF','1912FsXs1E3K38I9rEZIfKUQAU1Z6BMPf','1LKkgjRHaQS685pbSugjpKxpEEqX_G8TW','13_866qcYVp0CNBaUH3762TZeDwfveqNt','1lnpgl0B9ZU0EVEgFwR9b54K8WVvKBCC2'];
+function galImg(id,w){return 'https://lh3.googleusercontent.com/d/'+id+'=w'+w;}
+function galList(){return GAL;}
+/* Gallery (v6.52): every photo in one uncropped masonry layout (4/3/2 columns), no sections or tabs; click opens the lightbox */
 function vGallery(){
-  return pageTop('Gallery','See the space',L[3])+
-  '<div class="gal-tabs"><div class="wrap"><div class="hm hm-sub gal-hm">'+'<button type="button" class="hm-btn" data-act="hm" aria-expanded="false"><span class="hm-ic" aria-hidden="true">☰</span><span class="hm-cur">'+GAL[0].name+'</span>'+''+'<span class="hm-car" aria-hidden="true">'+AH('d')+'</span></button>'+'<div class="hm-list gal-list" role="tablist" aria-label="Gallery sections">'+GAL.map((g,i)=>'<button role="tab" data-act="gal-jump" data-id="'+g.id+'" class="'+(i===0?'on':'')+'" aria-selected="'+(i===0)+'">'+g.name+'</button>').join('')+'</div></div></div></div>'+
-  '<div class="wrap">'+GAL.map((g,gi)=>'<section class="gal-sec" id="g-'+g.id+'" aria-label="'+g.name+'"><div class="gal-sh"><h2>'+g.name+'</h2></div><div class="gal-grid">'+
-    Array.from({length:6},(_,i)=>'<button data-act="lb" data-i="'+(gi*6+i)+'" aria-label="Open '+g.name+' photo '+(i+1)+'">'+ph(g.kind,TONES[(i+gi)%6],g.name+' photo '+(i+1))+'</button>').join('')+'</div></section>').join('')+'</div>';
+  return pageTop('Gallery','On the court','Where the game comes to life.')+
+  '<section class="wrap gal-all" aria-label="Photos">'+GAL.map((id,i)=>'<button data-act="lb" data-i="'+i+'" aria-label="Open photo '+(i+1)+' of '+GAL.length+'"><img src="'+galImg(id,800)+'" alt="Smash Corner photo '+(i+1)+'" loading="lazy" referrerpolicy="no-referrer" onload="this.classList.add(&quot;ok&quot;)"></button>').join('')+'</section>';
 }
-function galActive(id){const cur=$('.gal-hm .hm-cur'),g=GAL.find(x=>x.id===id);if(cur&&g)cur.textContent=g.name;$$('.gal-tabs button').forEach(b=>{const on=b.dataset.id===id;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));if(on&&b.scrollIntoView&&b.parentElement.scrollWidth>b.parentElement.clientWidth)b.parentElement.scrollLeft=b.offsetLeft-16;});}
-window.addEventListener('scroll',()=>{if(route()!=='gallery')return;const bar=$('.gal-tabs');if(!bar)return;const y=bar.getBoundingClientRect().bottom+40;let cur=GAL[0].id;GAL.forEach(g=>{const el=document.getElementById('g-'+g.id);if(el&&el.getBoundingClientRect().top<=y)cur=g.id;});const on=$('.gal-tabs .on');if(!on||on.dataset.id!==cur)galActive(cur);},{passive:true});
 /* Programs & Events (merged page, v4.52). #events opens the same page at the events section. */
+/* Programs & Events (v6.55): Programs = open classes, Events = open events, the same ones the Book page's Class / event tab
+   offers (open, or full before the deadline); an empty section shows a short message */
 function vProgEvents(){
-  const ev=[['Pickleball Social Night',5],['Lorem Ipsum Open (Tennis)',12],['Doubles Mixer',19],['Junior Rally Day',26]];
-  return pageTop('Programs & Events','Train, play, compete',L[4])+
+  const all=bookableClasses(),progs=all.filter(k=>k.kind!=='event'),evs=all.filter(k=>k.kind==='event');
+  const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const when=k=>{const d=parseKey(k.date);return DOW[d.getDay()]+', '+d.toLocaleDateString('en-PH',{month:'short'})+' '+d.getDate()+' · '+clsTime(k);};
+  const meta=k=>court(k.court).name+' · '+(k.fee?peso(k.fee):'Free')+' · '+(clsState(k)==='full'?'Full':Math.max(0,k.capacity-regsOf(k).length)+' of '+k.capacity+' spots left');
+  const btn=(k,l)=>clsState(k)==='full'?'<span class="btn btn-ghost btn-sm" aria-disabled="true">Full</span>':'<button class="btn btn-ghost btn-sm" data-act="pe-reg">'+l+'</button>';
+  const empty=w=>'<div class="empty"><p>No '+w+' open right now. Check back soon.</p><a href="#book" class="btn btn-ghost btn-sm">Book a court</a></div>';
+  return pageTop('Programs & Events','Train, play, compete','Clinics for new and returning players, regular community events and experienced coaches for tennis and pickleball.')+
   '<section class="sec wrap" style="padding-top:28px"><div class="chips" style="margin-bottom:28px" role="navigation" aria-label="On this page"><button type="button" class="chip" data-act="pe-jump" data-v="pe-programs">Programs</button><button type="button" class="chip" data-act="pe-jump" data-v="pe-events">Upcoming events</button><button type="button" class="chip" data-act="pe-jump" data-v="pe-coaches">Coaches</button></div>'+
-  '<div class="sec-head" id="pe-programs"><div class="stack"><p class="eyebrow">Programs</p><h2>Train with us</h2></div></div><div class="g3">'+
-    [['Junior Tennis Clinic','Ages 7–15 · Sat 8 AM'],['Pickleball 101','Beginners · Tue & Thu 6 PM'],['Adult Tennis Drills','Intermediate · Sun 7 AM']].map((p,i)=>'<article class="badge court-card rv"><div class="in">'+ph(i===1?'pickle':'tennis',['lav','lime','dark'][i],p[0])+'<div class="body"><h3>'+p[0]+'</h3><p class="lime" style="font-size:.88rem;font-weight:600">'+p[1]+'</p><p class="muted" style="font-size:.9rem">'+L[i]+'</p><a href="#contact" class="btn btn-ghost btn-sm">Ask about this program</a></div></div></article>').join('')+'</div>'+
-  '<div class="sec-head" id="pe-events" style="margin-top:64px"><div class="stack"><p class="eyebrow">Events</p><h2>What\'s on</h2><p class="muted" style="max-width:60ch">'+L[5]+'</p></div></div><div class="stack">'+ev.map((e,i)=>{const d=addDays(e[1]);return '<article class="card rv" style="display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:18px"><div style="background:'+(i%2?'var(--lav)':'var(--lime)')+';color:var(--on-accent);padding:12px 16px;text-align:center;min-width:84px" class="clip"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase">'+d.toLocaleDateString('en-PH',{month:'short'})+'</div><div style="font-family:var(--display);font-size:1.6rem;line-height:1">'+d.getDate()+'</div></div><div style="min-width:0"><h3>'+e[0]+'</h3><p class="muted" style="font-size:.9rem;margin-top:6px">'+L[i]+'</p></div><a href="#contact" class="btn btn-ghost btn-sm">Join</a></article>';}).join('')+'</div>'+
+  '<div class="sec-head" id="pe-programs"><div class="stack"><p class="eyebrow">Programs</p><h2>Train with us</h2></div></div>'+
+  (progs.length?'<div class="g3">'+progs.map((k,i)=>'<article class="badge court-card rv"><div class="in">'+ph(court(k.court).type==='pickle'?'pickle':'tennis',['lav','lime','dark'][i%3],esc(k.title))+'<div class="body"><h3>'+esc(k.title)+'</h3><p class="lime" style="font-size:.88rem;font-weight:600">'+when(k)+'</p><p class="muted" style="font-size:.86rem">'+meta(k)+'</p>'+(k.desc?'<p class="muted" style="font-size:.9rem">'+esc(k.desc)+'</p>':'')+btn(k,'Register')+'</div></div></article>').join('')+'</div>':empty('classes'))+
+  '<div class="sec-head" id="pe-events" style="margin-top:64px"><div class="stack"><p class="eyebrow">Events</p><h2>What\'s on</h2><p class="muted" style="max-width:60ch">Social nights, tournaments and clinics open to every level. Register online to reserve your spot.</p></div></div>'+
+  (evs.length?'<div class="stack">'+evs.map((k,i)=>{const d=parseKey(k.date);return '<article class="card rv" style="display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:18px"><div style="background:'+(i%2?'var(--lav)':'var(--lime)')+';color:var(--on-accent);padding:12px 16px;text-align:center;min-width:84px" class="clip"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase">'+d.toLocaleDateString('en-PH',{month:'short'})+'</div><div style="font-family:var(--display);font-size:1.6rem;line-height:1">'+d.getDate()+'</div></div><div style="min-width:0"><h3>'+esc(k.title)+'</h3><p class="muted" style="font-size:.86rem;margin-top:6px">'+clsTime(k)+' · '+meta(k)+'</p>'+(k.desc?'<p class="muted" style="font-size:.9rem;margin-top:6px">'+esc(k.desc)+'</p>':'')+'</div>'+btn(k,'Join')+'</article>';}).join('')+'</div>':empty('events'))+
   '<div class="sec-head" id="pe-coaches" style="margin-top:64px"><div class="stack"><p class="eyebrow">Coaches</p><h2>Our coaches</h2></div></div><div class="g3">'+
-    (PHASE===2?((S.coaches||[]).filter(c=>c.active).map((c,i)=>'<div class="person rv"><h3>'+esc(c.name)+'</h3><p class="muted" style="font-size:.9rem">'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+(c.bio?' · '+esc(c.bio):'')+' · '+peso(c.rate)+' / hr</p><p style="font-size:.84rem;margin-top:4px">'+esc(schedText(c))+'</p><button class="btn btn-lime btn-sm" style="margin-top:10px" data-act="coach-book" data-id="'+c.id+'">Book a session</button></div>').join('')||'<p class="muted">Coaching sessions at '+esc(branch().name)+' are coming soon.</p>'):['Coach Lorem','Coach Ipsum','Coach Dolor'].map((n,i)=>'<div class="person rv"><h3>'+n+'</h3><p class="muted" style="font-size:.9rem">'+['Tennis · 10 yrs','Pickleball · 6 yrs','Tennis & Pickleball · 8 yrs'][i]+'</p></div>').join(''))+'</div></section>';
+    (PHASE===2?((S.coaches||[]).filter(c=>c.active).map((c,i)=>'<div class="person rv"><h3>'+esc(c.name)+'</h3><p class="muted" style="font-size:.9rem">'+c.sports.map(x=>SPORT_LABEL[x]).join(' & ')+(c.bio?' · '+esc(c.bio):'')+' · '+peso(c.rate)+' / hr</p><p style="font-size:.84rem;margin-top:4px">'+esc(schedText(c))+'</p><button class="btn btn-lime btn-sm" style="margin-top:10px" data-act="coach-book" data-id="'+c.id+'">Book a session</button></div>').join('')||'<p class="muted">Coaching sessions at '+esc(branch().name)+' are coming soon.</p>'):['Coach Paolo','Coach Bea','Coach Miguel'].map((n,i)=>'<div class="person rv"><h3>'+n+'</h3><p class="muted" style="font-size:.9rem">'+['Tennis · 10 yrs','Pickleball · 6 yrs','Tennis & Pickleball · 8 yrs'][i]+'</p></div>').join(''))+'</div></section>';
 }
 /* FAQ lives on the Contact page (v4.60); #faq opens Contact at this section */
 function faqSection(){
-  const q=[['How do I book a court?','Choose a court, date and time on the Book page, add it to your cart and send your request. Once an admin approves it, we email you the payment details. Pay within 24 hours and upload your proof of payment. '+L[0]],['When is my booking confirmed?','After you pay and an admin checks your proof of payment. You get an email once it is confirmed. '+L[1]],['Which payment methods do you accept?','BDO, BPI, GCash and Maya. '+L[2]],['Can I cancel or reschedule online?','No. Please contact us and an admin will update your booking. See the Booking Policy for refunds.'],['What is the waitlist?','If a slot is taken, join the waitlist. If it frees up, the first person in line gets an email with a link that holds the slot for 2 hours.'],['Can I rent equipment?','Yes: rackets, paddles and balls, charged per item, per hour. '+L[3]],['What are your opening hours?','Daily, 7:00 AM to 10:00 PM, in 1-hour slots.'],['Do I need an account?','No. You book as a guest with your name, number and email.']];
+  const q=[['How do I book a court?','Choose a court, date and time on the Book page, add it to your cart and send your request. Once an admin approves it, we email you the payment details. Pay within 24 hours and upload your proof of payment. Items in your cart are held for 15 minutes while you finish your request.'],['When is my booking confirmed?','After you pay and an admin checks your proof of payment. You get an email once it is confirmed. We review payments within 24 hours, usually much sooner.'],['Which payment methods do you accept?','BDO, BPI, GCash and Maya. The account details are in your approval email; please pay the exact amount shown.'],['Can I cancel or reschedule online?','No. Please contact us and an admin will update your booking. See the Booking Policy for refunds.'],['What is the waitlist?','If a slot is taken, join the waitlist. If it frees up, the first person in line gets an email with a link that holds the slot for 2 hours.'],['Can I rent equipment?','Yes: rackets, paddles and balls, charged per item, per hour. Add them when you book and they will be ready at the court. Please return them when your time is up.'],['What are your opening hours?','Daily, 7:00 AM to 10:00 PM, in 1-hour slots.'],['Do I need an account?','No. You book as a guest with your name, number and email.']];
   return '<section class="sec wrap" id="faq-sec" style="padding-top:8px"><div class="sec-head"><div class="stack"><p class="eyebrow">FAQ</p><h2>Questions, answered</h2></div></div><div class="stack" style="gap:8px;max-width:860px">'+q.map(x=>'<details class="card" style="padding:0"><summary style="padding:16px 18px;cursor:pointer;font-weight:600">'+x[0]+'</summary><p class="muted" style="padding:0 18px 18px">'+x[1]+'</p></details>').join('')+'</div><p style="margin-top:20px"><a href="#policy">Read the full Booking Policy '+AH()+'</a></p></section>';
 }
 function vContact(){
-  return pageTop('Contact','Get in touch',L[1])+
+  return pageTop('Contact','Get in touch','Questions about bookings, programs or private events? Send us a message or call, and our team will get back to you.')+
   '<section class="sec wrap" style="padding-top:28px"><div class="g2" style="align-items:start"><form id="contactForm" class="stack card" style="padding:24px" novalidate><div class="form-grid"><label class="f"><span>Name</span><input class="inp" id="cName" required></label><label class="f"><span>Email</span><input class="inp" id="cEmail" type="email" required></label><label class="f full"><span>Subject</span><select class="inp" id="cSubj"><option>Cancel or reschedule a booking</option><option>Programs & coaching</option><option>Events</option><option>Other</option></select></label><label class="f full"><span>Message</span><textarea class="inp" id="cMsg" required></textarea></label></div><p class="err" id="cErr"></p><button class="btn btn-lime" type="submit" style="align-self:flex-start">Send message</button></form>'+
-  '<div class="stack"><div class="ph t-dark2" role="img" aria-label="Map placeholder" style="aspect-ratio:16/11"><svg viewBox="0 0 400 300" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M0 80h400M0 190h400M120 0v300M290 0v300M0 260 400 30" stroke="var(--text-muted)"/><path d="M200 110c-22 0-38 16-38 37 0 28 38 63 38 63s38-35 38-63c0-21-16-37-38-37z" stroke-width="4" style="color:var(--lime)" stroke="var(--lime)"/><circle cx="200" cy="148" r="11" stroke="var(--lime)" stroke-width="4"/><\/svg><span class="ph-tag">Map placeholder</span></div><dl class="spec" style="font-size:.95rem"><dt>Address</dt><dd>Lorem Ipsum St., Quezon City</dd><dt>Hours</dt><dd>Daily, 7:00 AM – 10:00 PM</dd><dt>Phone</dt><dd>(02) 8000 0000</dd><dt>Email</dt><dd>hello@smashcorner-qc.com</dd></dl></div></div></section>'+faqSection();
+  '<div class="stack"><iframe src="https://maps.google.com/maps?q=14.627726,121.005311&amp;z=17&amp;output=embed" title="Map to Smash Corner" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen style="width:100%;aspect-ratio:16/11;border:0;border-radius:14px"><\/iframe><dl class="spec" style="font-size:.95rem"><dt>Address</dt><dd>98 Maria Clara St. corner Sto. Domingo Ave., Quezon City</dd><dt>Hours</dt><dd>Daily, 7:00 AM – 10:00 PM</dd><dt>Phone</dt><dd>(02) 8332 1900</dd><dt>Email</dt><dd>smash.corner2026@gmail.com</dd></dl></div></div></section>'+faqSection();
 }
 function vPolicy(){
   const sec=(t,items,start)=>'<h3 style="margin-top:28px">'+t+'</h3><ol start="'+start+'" class="muted" style="display:flex;flex-direction:column;gap:8px;padding-left:22px;margin-top:12px">'+items.map(i=>'<li>'+i+'</li>').join('')+'</ol>';
-  return pageTop('Booking Policy','Booking & refund policy','Placeholder wording. The final policy will be supplied by Smash Corner.')+
+  return pageTop('Booking Policy','Booking & refund policy','How booking requests, payments, changes and refunds work at Smash Corner.')+
   '<section class="sec wrap" style="padding-top:12px;max-width:820px">'+
   sec('Bookings',['A booking request is reviewed by an admin first. Once it is approved, you get an email with the amount and payment details.','Pay within 24 hours of approval. Unpaid requests expire and the time is released.','Pay the exact amount shown and upload a clear proof of payment. A booking is only confirmed once an admin verifies your payment; you will receive a confirmation email.','Items in the cart are held for 15 minutes. Admins review requests and payments within 24 hours (usually much sooner).'],1)+
   sec('Cancellations & Rescheduling',['Customers cannot cancel or reschedule online. Please contact us; an admin will make the change.','Rescheduling is free once per booking if requested at least 24 hours before the start time, subject to availability.','Refunds for cancellations requested by the customer: 48 hours or more before start, 100%. 24–48 hours before start, 50%. Less than 24 hours or no-show, no refund.','If Smash Corner cancels (maintenance, weather, emergencies), you get a full refund or a free reschedule.','Rejected bookings are refunded in full within 3–5 business days, to the original payment method.'],5)+
@@ -2075,7 +2124,7 @@ function seedPromos(s){
     const x=mk({code:'SUMMER15',label:'Summer promo',value:15,maxUses:200,start:dkey(addDays(-120)),end:dkey(addDays(-30)),createdAt:now-125*D});
     s.promos.push(g,f,x);use(g,12);use(f,5);use(x,41);
   }else{
-    const l=mk({code:'LOREM10',label:'10% off at our new branch',value:10,appliesTo:['court','class'],maxUses:30,end:dkey(addDays(14))});
+    const l=mk({code:'MARIKINA10',label:'10% off at our new branch',value:10,appliesTo:['court','class'],maxUses:30,end:dkey(addDays(14))});
     s.promos.push(l);use(l,4);
   }
 }
@@ -2246,9 +2295,9 @@ function seedCoaches(s){
   s.coaches=[];if(BR!=='qc')return;
   const sch=o=>{const a=[null,null,null,null,null,null,null];Object.keys(o).forEach(d=>{a[d]=o[d];});return a;};
   s.coaches.push(
-    {id:'co1',name:'Coach Lorem',sports:['tennis'],rate:600,bio:'10 yrs coaching',sched:sch({1:[7,12],3:[7,12],5:[7,12],6:[7,11]}),off:[],active:true},
-    {id:'co2',name:'Coach Ipsum',sports:['pickle'],rate:500,bio:'6 yrs coaching',sched:sch({2:[15,21],4:[15,21],0:[8,12]}),off:[{id:uid(),from:dkey(addDays(8)),to:dkey(addDays(10)),reason:'Tournament'}],active:true},
-    {id:'co3',name:'Coach Dolor',sports:['tennis','pickle'],rate:550,bio:'8 yrs coaching',sched:sch({1:[17,21],2:[17,21],3:[17,21],4:[17,21],5:[17,21],6:[13,18]}),off:[],active:true});
+    {id:'co1',name:'Coach Paolo',sports:['tennis'],rate:600,bio:'10 yrs coaching',sched:sch({1:[7,12],3:[7,12],5:[7,12],6:[7,11]}),off:[],active:true},
+    {id:'co2',name:'Coach Bea',sports:['pickle'],rate:500,bio:'6 yrs coaching',sched:sch({2:[15,21],4:[15,21],0:[8,12]}),off:[{id:uid(),from:dkey(addDays(8)),to:dkey(addDays(10)),reason:'Tournament'}],active:true},
+    {id:'co3',name:'Coach Miguel',sports:['tennis','pickle'],rate:550,bio:'8 yrs coaching',sched:sch({1:[17,21],2:[17,21],3:[17,21],4:[17,21],5:[17,21],6:[13,18]}),off:[],active:true});
   /* a few sample sessions inside each coach's hours (S is this branch's data while seeding) */
   const now=Date.now();
   const busy=(cid,date,h)=>s.bookings.some(b=>ACTIVE(b)&&b.court===cid&&b.date===date&&b.slots.includes(h))||(s.closures||[]).some(c=>c.courts.includes(cid)&&clOn(c,date)&&h>=c.start&&h<c.end)||(s.classes||[]).some(k=>k.status!=='cancelled'&&k.court===cid&&k.date===date&&h>=k.start&&h<k.end);
@@ -2565,8 +2614,8 @@ function openOutbox(sel){
   openOverlay(html+'</div>','drawer');
 }
 function openLB(i){
-  const all=galList();LB={i:(i+all.length)%all.length};const it=all[LB.i];
-  openOverlay('<div class="lb-bar"><span><b>'+it.g.name+'</b> <span class="muted tabnum">'+(LB.i+1)+' / '+all.length+'</span></span><button class="x" data-close="1" aria-label="Close">×</button></div>'+ph(it.g.kind,it.tone,it.g.name+' photo '+(it.i+1))+'<div class="lb-bar"><button class="btn btn-ghost btn-sm" data-act="lb-step" data-d="-1">'+AH('l')+' Previous</button><span class="muted" style="font-size:.85rem">Use arrow keys</span><button class="btn btn-ghost btn-sm" data-act="lb-step" data-d="1">Next '+AH()+'</button></div>','lb');
+  const all=galList();LB={i:(i+all.length)%all.length};const id=all[LB.i];
+  openOverlay('<div class="lb-bar"><span class="muted tabnum">'+(LB.i+1)+' / '+all.length+'</span><button class="x" data-close="1" aria-label="Close">×</button></div><img class="lb-img" src="'+galImg(id,2000)+'" alt="Smash Corner photo '+(LB.i+1)+'" referrerpolicy="no-referrer">'+'<div class="lb-bar"><button class="btn btn-ghost btn-sm" data-act="lb-step" data-d="-1">'+AH('l')+' Previous</button><span class="muted" style="font-size:.85rem">Use arrow keys</span><button class="btn btn-ghost btn-sm" data-act="lb-step" data-d="1">Next '+AH()+'</button></div>','lb');
 }
 function openWaitlist(h){
   const cu=prof();const c=court(W.court);
@@ -3084,7 +3133,7 @@ function vClasses(){
       acts+='<button class="btn btn-danger btn-sm" data-act="cls-cancel" data-id="'+k.id+'">Cancel class</button>';
     }
     const why=st==='closed'?(k.status==='open'?'deadline passed':'closed by admin'):'';
-    return '<tr><td><b>'+esc(k.title)+'</b><br><small class="muted">'+court(k.court).name+'</small></td><td>'+fmtDate(k.date)+'<br><small class="muted">'+clsTime(k)+'</small></td><td><small>'+fmtTs(k.deadline)+'</small></td><td class="num">'+taken+' / '+k.capacity+(pend?'<br><small class="muted">'+pend+' not confirmed yet</small>':'')+'</td><td class="num">'+peso(k.fee)+'</td><td><small>'+(k.rentalFee==null?'None':esc(rentItem(k).name)+'<br><span class="muted">'+peso(k.rentalFee)+' · '+rentLeft(k)+' of '+k.rentalQty+' left</span>')+'</small></td><td>'+clsPill(k)+(why?'<br><small class="muted">'+why+'</small>':'')+'</td><td><div class="acts">'+acts+'</div></td></tr>';
+    return '<tr><td><b>'+esc(k.title)+'</b><br><small class="muted">'+(k.kind==='event'?'Event':'Class')+' · '+court(k.court).name+'</small></td><td>'+fmtDate(k.date)+'<br><small class="muted">'+clsTime(k)+'</small></td><td><small>'+fmtTs(k.deadline)+'</small></td><td class="num">'+taken+' / '+k.capacity+(pend?'<br><small class="muted">'+pend+' not confirmed yet</small>':'')+'</td><td class="num">'+peso(k.fee)+'</td><td><small>'+(k.rentalFee==null?'None':esc(rentItem(k).name)+'<br><span class="muted">'+peso(k.rentalFee)+' · '+rentLeft(k)+' of '+k.rentalQty+' left</span>')+'</small></td><td>'+clsPill(k)+(why?'<br><small class="muted">'+why+'</small>':'')+'</td><td><div class="acts">'+acts+'</div></td></tr>';
   }).join('')+'</tbody></table></div>';
   return '<div class="row" style="justify-content:space-between;align-items:flex-start"><p class="muted" style="max-width:68ch">Class and event registration is <b>closed by default</b>. Open registration to publish a class on the Book page. It closes on its own at the deadline or when the class is full. The court is blocked for court bookings during the class.</p><button class="btn btn-lime" data-act="cls-new">+ Open registration</button></div>'+
     (nOpen?'<div class="banner lime">Registration is <b>open</b> for '+nOpen+' class'+(nOpen>1?'es':'')+'. Customers see '+(nOpen>1?'them':'it')+' under "Class / event" on the Book page.</div>':'<div class="banner">Registration is <b>closed</b>. Customers see "Class registration is closed" on the Book page.</div>')+
@@ -3119,7 +3168,10 @@ function openClsForm(){
   const rd=cxRentDefaults();
   openOverlay('<div class="modal-head"><div><p class="eyebrow">Classes & Events</p><h2 style="font-size:1.2rem;margin-top:6px">Open registration</h2></div><button class="x" data-close="1" aria-label="Close">×</button></div>'+
   '<form id="clsForm" class="stack" novalidate>'+
+  /* v6.55: Class → Programs, Event → Events on the Programs & Events page */
+  '<fieldset style="border:0;padding:0;margin:0" class="stack"><legend style="font-weight:600;margin-bottom:10px">Type</legend><div class="seg"><label><input type="radio" name="cxKind" value="class" checked> Class</label><label><input type="radio" name="cxKind" value="event"> Event</label></div><p class="muted" style="font-size:.86rem;margin:0">Classes show under Programs, events under Events on the Programs &amp; Events page.</p></fieldset>'+
   '<div class="form-grid"><label class="f full"><span>Title</span><input class="inp" id="cxTitle" maxlength="80" placeholder="e.g. Pickleball 101: Beginners Clinic" autofocus></label>'+
+  '<label class="f full"><span>Description <small class="muted">(optional, shown on Programs &amp; Events)</small></span><textarea class="inp" id="cxDesc" maxlength="300" rows="2" placeholder="One or two sentences about who it is for and what to expect."></textarea></label>'+
   '<label class="f full"><span>Court</span><select class="inp" id="cxCourt">'+COURTS.map(c=>'<option value="'+c.id+'"'+(c.id===CX.court?' selected':'')+'>'+c.name+'</option>').join('')+'</select></label></div>'+
   '<div class="stack" style="gap:8px"><span style="font-weight:600">Date</span><div id="cxCal">'+cxCalHtml()+'</div></div>'+
   '<div class="form-grid"><label class="f"><span>Start time</span><select class="inp" id="cxStart">'+HOURS.map(h=>'<option value="'+h+'"'+(h===8?' selected':'')+'>'+fmtH(h)+'</option>').join('')+'</select></label><label class="f"><span>End time</span><select class="inp" id="cxEnd">'+HOURS.map(h=>'<option value="'+(h+1)+'"'+(h+1===10?' selected':'')+'>'+fmtH(h+1)+'</option>').join('')+'</select></label>'+
@@ -3136,6 +3188,7 @@ function clsFormChange(t){
   $('#eCx').textContent='';
 }
 function readCx(){
+  const kind=(document.querySelector('input[name=cxKind]:checked')||{}).value==='event'?'event':'class',desc=$('#cxDesc').value.trim();
   const title=$('#cxTitle').value.trim(),cid=$('#cxCourt').value,date=CX.date,start=Number($('#cxStart').value),end=Number($('#cxEnd').value);
   const dlDate=$('#cxDlDate').value,dlH=Number($('#cxDlTime').value),cap=parseInt($('#cxCap').value,10),feeV=$('#cxFee').value,fee=Number(feeV);
   const rent=(document.querySelector('input[name=cxRent]:checked')||{}).value==='yes';
@@ -3159,15 +3212,15 @@ function readCx(){
     else if(feeV===''||!(fee>=0))err='Enter the fee (0 for a free class).';
     else if(rent&&(isNaN(rf)||rf<0||!(rq>=1)))err='Enter the rental fee and how many are available (at least 1), or choose No rentals.';
   }
-  return {err,k:{id:uid(),title,court:cid,date,start,end,deadline:dl,capacity:cap,fee,rentalFee:rent?rf:null,rentalQty:rent?rq:0,status:'open'}};
+  return {err,k:{id:uid(),kind,desc,title,court:cid,date,start,end,deadline:dl,capacity:cap,fee,rentalFee:rent?rf:null,rentalQty:rent?rq:0,status:'open'}};
 }
 function submitClsForm(){
   const r=readCx();if(r.err){$('#eCx').textContent=r.err;return;}
   const k=r.k,a=ADMINS.find(x=>x.id===S.admin);k.createdBy=a?a.name:'Admin';k.createdAt=Date.now();
   S.classes.push(k);
   S.cart=S.cart.filter(c=>!(c.court===k.court&&c.date===k.date&&c.slots.some(h=>h>=k.start&&h<k.end)));
-  logA('Class registration opened',k.title,court(k.court).name+' · '+fmtDate(k.date)+' '+clsTime(k)+' · '+k.capacity+' slots · '+peso(k.fee)+(k.rentalFee!=null?' · '+k.rentalQty+' '+rentItem(k).name+' rentals at '+peso(k.rentalFee):'')+' · deadline '+fmtTs(k.deadline));
-  save();updateBadges();closeOverlay();rerenderKeep();toast('Registration is open. "'+k.title+'" is now on the Book page.');
+  logA(k.kind==='event'?'Event registration opened':'Class registration opened',k.title,court(k.court).name+' · '+fmtDate(k.date)+' '+clsTime(k)+' · '+k.capacity+' slots · '+peso(k.fee)+(k.rentalFee!=null?' · '+k.rentalQty+' '+rentItem(k).name+' rentals at '+peso(k.rentalFee):'')+' · deadline '+fmtTs(k.deadline));
+  save();updateBadges();closeOverlay();rerenderKeep();toast('Registration is open. "'+k.title+'" is now on the Book page and under '+(k.kind==='event'?'Events':'Programs')+' on Programs & Events.');
 }
 function openRegs(id){
   const k=S.classes.find(x=>x.id===id);if(!k)return;
@@ -3389,6 +3442,7 @@ document.addEventListener('click',e=>{
     case 'promo-gen':{const c='SC'+Math.random().toString(36).slice(2,8).toUpperCase();$('#pfCode').value=c;break;}
     case 'promo-toggle':{const p=S.promos.find(x=>x.id===id);p.active=!p.active;logA(p.active?'Promo code resumed':'Promo code paused',p.code,'');save();rerenderKeep();toast(p.code+(p.active?' resumed.':' paused. Customers can\'t use it until you resume it.'));break;}
     case 'promo-del':{const p=S.promos.find(x=>x.id===id);if(promoUses(p).length){toast('Used codes can\'t be deleted. Pause it instead.','warn');break;}p.deleted=true;logA('Promo code deleted',p.code,'');save();rerenderKeep();toast(p.code+' deleted.');break;}
+    case 'pe-reg':BM='class';go('book');break;
     case 'pe-jump':{const el=document.getElementById(t.dataset.v);if(el)el.scrollIntoView();break;}
     case 'branch-pick':chosen=true;try{sessionStorage.setItem('sc-branch-chosen','1');}catch(e){}if(id!==BR)switchBranch(id);else render();break;
     case 'branch-change':chosen=false;try{sessionStorage.removeItem('sc-branch-chosen');}catch(e){}closeOverlay();render();break;
@@ -3399,8 +3453,7 @@ document.addEventListener('click',e=>{
     case 'reset-yes':S=null;BRANCHES.forEach(b=>{try{localStorage.removeItem(skey(b.id));}catch(e){}});try{localStorage.removeItem(AKEY);}catch(e){}ACC=loadAcc();AUTH=null;updateAcct();initState();W={step:1,court:null,date:null,slots:[],claimId:null,rent:null,equip:{}};P={method:null,proof:null};BM='court';CW={id:null,f:{},rent:null,done:null};CP={method:null,proof:null};AT='dash';closeOverlay();updateBadges();go('home');toast('Demo reset.');break;
     case 'book-court':W={step:2,court:id,date:null,slots:[],claimId:null,rent:null,equip:{}};go('book');break;
     case 'book-new':e.preventDefault();W={step:1,court:null,date:null,slots:[],claimId:null,rent:null,equip:{}};go('book');break;
-    case 'go-gal':pendingScroll=id;go('gallery');break;
-    case 'gal-jump':{const el=document.getElementById('g-'+id);if(el)el.scrollIntoView();galActive(id);break;}
+    case 'go-gal':go('gallery');break;
     case 'lb':openLB(Number(t.dataset.i));break;
     case 'lb-step':if(LB)openLB(LB.i+Number(t.dataset.d));break;
     case 'step':W.step=Number(t.dataset.n);rerenderKeep();break;

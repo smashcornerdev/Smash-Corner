@@ -49,6 +49,7 @@ export type ClassRow = {
   id: string; title: string; court_id: string; date: string; start_hour: number; end_hour: number;
   deadline: string; capacity: number; fee: number; rental_fee: number | null; rental_qty: number;
   status: "open" | "closed" | "cancelled"; created_by: string; created_at: string;
+  kind: "class" | "event"; description: string; // v6.55: Programs (class) or Events (event) on the Programs & Events page
 };
 export type ClassReg = {
   id: string; ref: string; class_id: string; name: string; nickname: string; age: number; email: string;
