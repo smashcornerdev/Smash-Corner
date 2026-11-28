@@ -19,7 +19,7 @@ const NAV = [
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Smash Corner home">
-      <span className="brand-mark" aria-hidden="true" />
+      <span className="brand-logo" aria-hidden="true" />
       <span className="brand-word">SMASH<br />CORNER</span>
     </Link>
   );

@@ -155,6 +155,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand-mark{width:34px;height:34px;background:var(--lav);padding:3px;clip-path:polygon(10px 0,100% 0,100% 100%,0 100%,0 10px);position:relative}
 .brand-mark::before{content:"";position:absolute;inset:3px;background:var(--ink);clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)}
 .brand-mark::after{content:"";position:absolute;inset:7px;background:var(--lime);clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px)}
+/* the navbar logo (v6.68): the Smash Corner badge (same as the tab icon), drawn in the text colour through a mask of the SVG */
+.brand-logo{width:38px;height:34px;flex-shrink:0;background:currentColor;-webkit-mask:url("/images/smash-corner-webtablogo.svg") center/contain no-repeat;mask:url("/images/smash-corner-webtablogo.svg") center/contain no-repeat}
 .brand-word{font-family:var(--display);font-weight:900;font-size:.82rem;line-height:1;letter-spacing:.02em}
 .main-nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
 .main-nav a{color:var(--fg);text-decoration:none;font-size:.88rem;font-weight:500;padding:.45em .7em}
@@ -1349,7 +1351,8 @@ html.splash-on,html.splash-on body{overflow:hidden}
 .gal-all{columns:4;column-gap:10px;padding-block:8px 64px}
 .gal-all button{all:unset;cursor:zoom-in;display:block;break-inside:avoid;margin-bottom:10px;overflow:hidden;border-radius:12px;background:var(--surface)}
 .gal-all button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
-.gal-all img{width:100%;height:auto;display:block}
+.gal-all button{position:relative;width:100%} /* full column width (a button shrinks to its content otherwise); its shape comes from the photo's size (inline aspect-ratio, v6.69); the photo fills it */
+.gal-all img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .gal-all img:not([src]){color:transparent} /* no alt text showing in a tile whose photo hasn't started yet (v6.63) */
 @media (max-width:900px){.gal-all{columns:3}}
 @media (max-width:640px){.gal-all{columns:2;column-gap:8px}.gal-all button{margin-bottom:8px}}

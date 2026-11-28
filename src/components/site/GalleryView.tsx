@@ -101,9 +101,11 @@ export default function GalleryView() {
     <>
       <section className="wrap gal-all" aria-label="Photos" ref={grid}>
         {GALLERY.map((g, i) => (
-          <button key={g.id} onClick={() => setLb(i)} aria-label={`Open photo ${i + 1} of ${n}`}>
-            {/* no src until the photo nears the screen (v6.63, set by the effect above); the tile keeps the photo's shape meanwhile */}
-            <img decoding="async" referrerPolicy="no-referrer" width={g.w} height={g.h} style={{ aspectRatio: `${g.w} / ${g.h}` }}
+          // the tile itself carries the photo's shape (v6.69): an <img> with no src yet doesn't reliably keep it (it rendered too short
+          // until its photo arrived, so the first look saw the wrong photos on screen)
+          <button key={g.id} onClick={() => setLb(i)} aria-label={`Open photo ${i + 1} of ${n}`} style={{ aspectRatio: `${g.w} / ${g.h}` }}>
+            {/* no src until the photo nears the screen (v6.63, set by the effect above) */}
+            <img decoding="async" referrerPolicy="no-referrer" width={g.w} height={g.h}
               data-src={driveImg(g.id, 800)} alt={`Smash Corner photo ${i + 1}`} />
           </button>
         ))}
